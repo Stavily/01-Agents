@@ -42,6 +42,13 @@ type SensorAgent struct {
 
 // NewSensorAgent creates a new sensor agent instance
 func NewSensorAgent(cfg *config.Config, logger *zap.Logger) (*SensorAgent, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("config is required")
+	}
+	if logger == nil {
+		return nil, fmt.Errorf("logger is required")
+	}
+	
 	// Create API client
 	apiClient, err := api.NewClient(cfg, logger)
 	if err != nil {
@@ -103,7 +110,7 @@ func (s *SensorAgent) Start(ctx context.Context) error {
 
 	// Start metrics server if enabled
 	if s.config.Metrics.Enabled {
-		if err := s.metrics.Start(); err != nil {
+		if err := s.metrics.Start(ctx); err != nil {
 			s.logger.Warn("Failed to start metrics server", zap.Error(err))
 		}
 	}
@@ -140,7 +147,7 @@ func (s *SensorAgent) Stop(ctx context.Context) error {
 
 	// Stop metrics server
 	if s.metrics != nil {
-		if err := s.metrics.Stop(); err != nil {
+		if err := s.metrics.Stop(ctx); err != nil {
 			s.logger.Error("Failed to stop metrics", zap.Error(err))
 		}
 	}
@@ -539,16 +546,52 @@ func (s *SensorAgent) getAgentCapabilities() []string {
 	return capabilities
 }
 
+// IsRunning returns whether the sensor agent is currently running
+func (s *SensorAgent) IsRunning() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.started
+}
+
 // GetStatus returns the current status of the sensor agent
 func (s *SensorAgent) GetStatus() map[string]interface{} {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	return map[string]interface{}{
+		"agent_id":         s.config.Agent.ID,
+		"tenant_id":        s.config.Agent.TenantID,
+		"type":             "sensor",
+		"running":          s.started,
 		"started":          s.started,
 		"registration_id":  s.registrationID,
 		"plugin_count":     len(s.triggerPlugins),
 		"event_queue_size": len(s.eventChannel),
 		"metrics":          s.metrics.GetCurrentMetrics(),
+	}
+}
+
+// GetHealth returns the health status of the sensor agent
+func (s *SensorAgent) GetHealth() map[string]interface{} {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	components := make(map[string]interface{})
+	
+	// Add plugin health
+	for _, triggerPlugin := range s.triggerPlugins {
+		pluginID := triggerPlugin.GetInfo().ID
+		health := triggerPlugin.GetHealth()
+		components[pluginID] = map[string]interface{}{
+			"status":     string(health.Status),
+			"message":    health.Message,
+			"last_error": health.LastError,
+		}
+	}
+
+	return map[string]interface{}{
+		"agent_id":   s.config.Agent.ID,
+		"status":     "healthy", // Could be more sophisticated
+		"components": components,
 	}
 }

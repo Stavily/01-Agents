@@ -3,7 +3,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -11,472 +10,109 @@ import (
 
 	"github.com/stavily/agents/shared/pkg/config"
 	"github.com/stavily/agents/shared/pkg/plugin"
+	sharedagent "github.com/stavily/agents/shared/pkg/agent"
 )
 
-// PluginManager implements a basic plugin manager for the sensor agent
-type PluginManager struct {
-	cfg     *config.PluginConfig
-	logger  *zap.Logger
-	plugins map[string]plugin.Plugin
-	mu      sync.RWMutex
+// PluginManager is an alias to the shared plugin manager
+type PluginManager = sharedagent.PluginManager
+
+// NewPluginManager creates a new plugin manager using the shared implementation
+func NewPluginManager(cfg *config.Config, logger *zap.Logger) (*PluginManager, error) {
+	return sharedagent.NewPluginManager(&cfg.Plugins, logger)
 }
 
-// NewPluginManager creates a new plugin manager
-func NewPluginManager(cfg *config.Config, logger *zap.Logger) (plugin.PluginManager, error) {
-	return &PluginManager{
-		cfg:     &cfg.Plugins,
-		logger:  logger,
-		plugins: make(map[string]plugin.Plugin),
-	}, nil
+
+
+
+
+// Metrics wraps the shared MetricsCollector with sensor-specific functionality
+type Metrics struct {
+	*sharedagent.MetricsCollector
 }
 
-// Initialize initializes the plugin manager
-func (pm *PluginManager) Initialize(ctx context.Context) error {
-	pm.logger.Info("Initializing plugin manager")
-	// TODO: Implement Python plugin loading and initialization
-	return nil
-}
-
-// Shutdown shuts down the plugin manager
-func (pm *PluginManager) Shutdown(ctx context.Context) error {
-	pm.logger.Info("Shutting down plugin manager")
-	// TODO: Implement plugin shutdown
-	return nil
-}
-
-// GetPluginStatuses returns the status of all plugins
-func (pm *PluginManager) GetPluginStatuses() map[string]*PluginStatus {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	// TODO: Implement actual plugin status collection
-	return map[string]*PluginStatus{
-		"cpu-monitor": {
-			Loaded:  1,
-			Running: 1,
-			Errors:  0,
-		},
-	}
-}
-
-// ListPluginsByType returns plugins of a specific type
-func (pm *PluginManager) ListPluginsByType(pluginType plugin.PluginType) []plugin.Plugin {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	var result []plugin.Plugin
-	for _, p := range pm.plugins {
-		if p.GetInfo().Type == pluginType {
-			result = append(result, p)
-		}
-	}
-	return result
-}
-
-// GetHealth returns the plugin manager health
-func (pm *PluginManager) GetHealth() *ComponentHealth {
-	return &ComponentHealth{
-		Status:     HealthStatusHealthy,
-		LastCheck:  time.Now(),
-		ErrorCount: 0,
-	}
-}
-
-// PluginRegistry interface methods
-
-// RegisterPlugin registers a plugin with the registry
-func (pm *PluginManager) RegisterPlugin(p plugin.Plugin) error {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
-
-	info := p.GetInfo()
-	if info == nil {
-		return fmt.Errorf("plugin info is nil")
-	}
-
-	pm.plugins[info.ID] = p
-	pm.logger.Info("Plugin registered", zap.String("plugin_id", info.ID))
-	return nil
-}
-
-// UnregisterPlugin unregisters a plugin from the registry
-func (pm *PluginManager) UnregisterPlugin(id string) error {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
-
-	if _, exists := pm.plugins[id]; !exists {
-		return fmt.Errorf("plugin not found: %s", id)
-	}
-
-	delete(pm.plugins, id)
-	pm.logger.Info("Plugin unregistered", zap.String("plugin_id", id))
-	return nil
-}
-
-// GetPlugin retrieves a plugin by ID
-func (pm *PluginManager) GetPlugin(id string) (plugin.Plugin, error) {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	p, exists := pm.plugins[id]
-	if !exists {
-		return nil, fmt.Errorf("plugin not found: %s", id)
-	}
-
-	return p, nil
-}
-
-// ListPlugins lists all registered plugins
-func (pm *PluginManager) ListPlugins() []plugin.Plugin {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	var result []plugin.Plugin
-	for _, p := range pm.plugins {
-		result = append(result, p)
-	}
-	return result
-}
-
-// GetPluginInfo gets plugin information by ID
-func (pm *PluginManager) GetPluginInfo(id string) (*plugin.Info, error) {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	p, exists := pm.plugins[id]
-	if !exists {
-		return nil, fmt.Errorf("plugin not found: %s", id)
-	}
-
-	return p.GetInfo(), nil
-}
-
-// PluginLoader interface methods
-
-// LoadPlugin loads a plugin from the specified path
-func (pm *PluginManager) LoadPlugin(ctx context.Context, path string) (plugin.Plugin, error) {
-	pm.logger.Info("Loading plugin", zap.String("path", path))
-	// TODO: Implement Python plugin loading
-	return nil, fmt.Errorf("plugin loading not implemented")
-}
-
-// UnloadPlugin unloads a plugin
-func (pm *PluginManager) UnloadPlugin(ctx context.Context, p plugin.Plugin) error {
-	info := p.GetInfo()
-	if info == nil {
-		return fmt.Errorf("plugin info is nil")
-	}
-
-	pm.logger.Info("Unloading plugin", zap.String("plugin_id", info.ID))
-	return pm.UnregisterPlugin(info.ID)
-}
-
-// ReloadPlugin reloads a plugin
-func (pm *PluginManager) ReloadPlugin(ctx context.Context, p plugin.Plugin) (plugin.Plugin, error) {
-	info := p.GetInfo()
-	if info == nil {
-		return nil, fmt.Errorf("plugin info is nil")
-	}
-
-	pm.logger.Info("Reloading plugin", zap.String("plugin_id", info.ID))
-	// TODO: Implement plugin reloading
-	return p, nil
-}
-
-// ValidatePlugin validates a plugin before loading
-func (pm *PluginManager) ValidatePlugin(path string) error {
-	pm.logger.Info("Validating plugin", zap.String("path", path))
-	// TODO: Implement plugin validation
-	return nil
-}
-
-// PluginManager specific methods
-
-// StartPlugin starts a plugin
-func (pm *PluginManager) StartPlugin(ctx context.Context, id string) error {
-	p, err := pm.GetPlugin(id)
-	if err != nil {
-		return err
-	}
-
-	return p.Start(ctx)
-}
-
-// StopPlugin stops a plugin
-func (pm *PluginManager) StopPlugin(ctx context.Context, id string) error {
-	p, err := pm.GetPlugin(id)
-	if err != nil {
-		return err
-	}
-
-	return p.Stop(ctx)
-}
-
-// RestartPlugin restarts a plugin
-func (pm *PluginManager) RestartPlugin(ctx context.Context, id string) error {
-	p, err := pm.GetPlugin(id)
-	if err != nil {
-		return err
-	}
-
-	if err := p.Stop(ctx); err != nil {
-		return fmt.Errorf("failed to stop plugin: %w", err)
-	}
-
-	return p.Start(ctx)
-}
-
-// GetPluginStatus gets the status of a plugin
-func (pm *PluginManager) GetPluginStatus(id string) (plugin.Status, error) {
-	p, err := pm.GetPlugin(id)
-	if err != nil {
-		return "", err
-	}
-
-	return p.GetStatus(), nil
-}
-
-// GetPluginHealth gets the health of a plugin
-func (pm *PluginManager) GetPluginHealth(id string) (*plugin.Health, error) {
-	p, err := pm.GetPlugin(id)
+// NewMetrics creates a new metrics collector for the sensor agent
+func NewMetrics(cfg config.MetricsConfig, logger *zap.Logger) (*Metrics, error) {
+	collector, err := sharedagent.NewMetricsCollector(&cfg, logger)
 	if err != nil {
 		return nil, err
 	}
-
-	return p.GetHealth(), nil
-}
-
-// UpdatePlugin updates a plugin to a new version
-func (pm *PluginManager) UpdatePlugin(ctx context.Context, id string, version string) error {
-	pm.logger.Info("Updating plugin", zap.String("plugin_id", id), zap.String("version", version))
-	// TODO: Implement plugin updates
-	return fmt.Errorf("plugin updates not implemented")
-}
-
-// ConfigurePlugin configures a plugin with new settings
-func (pm *PluginManager) ConfigurePlugin(ctx context.Context, id string, config map[string]interface{}) error {
-	p, err := pm.GetPlugin(id)
-	if err != nil {
-		return err
-	}
-
-	return p.Initialize(ctx, config)
-}
-
-// Metrics handles metrics collection and export for the sensor agent
-type Metrics struct {
-	cfg    *config.MetricsConfig
-	logger *zap.Logger
-	stats  *MetricsStats
-	mu     sync.RWMutex
-}
-
-// MetricsStats tracks metrics statistics
-type MetricsStats struct {
-	MetricsExported  int
-	LastExport       time.Time
-	ExportErrors     int
-	TriggersDetected int
-	EventsProcessed  int
-}
-
-// NewMetrics creates a new metrics collector
-func NewMetrics(cfg config.MetricsConfig, logger *zap.Logger) (*Metrics, error) {
+	
 	return &Metrics{
-		cfg:    &cfg,
-		logger: logger,
-		stats:  &MetricsStats{},
+		MetricsCollector: collector,
 	}, nil
 }
 
-// Start starts the metrics collector
-func (m *Metrics) Start() error {
-	m.logger.Info("Starting metrics collector")
-	// TODO: Implement metrics collection and export
-	return nil
-}
-
-// Stop stops the metrics collector
-func (m *Metrics) Stop() error {
-	m.logger.Info("Stopping metrics collector")
-	return nil
-}
-
-// GetStatus returns the metrics collector status
-func (m *Metrics) GetStatus() *MetricsStatus {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return &MetricsStatus{
-		MetricsExported:  m.stats.MetricsExported,
-		LastExport:       m.stats.LastExport,
-		ExportErrors:     m.stats.ExportErrors,
-		TriggersDetected: m.stats.TriggersDetected,
-		EventsProcessed:  m.stats.EventsProcessed,
-	}
-}
-
-// GetHealth returns the metrics collector health
-func (m *Metrics) GetHealth() *ComponentHealth {
-	return &ComponentHealth{
-		Status:     HealthStatusHealthy,
-		LastCheck:  time.Now(),
-		ErrorCount: 0,
-	}
-}
+// Sensor-specific metrics methods that extend the shared MetricsCollector
 
 // RecordTriggerDetected records a trigger detection event
 func (m *Metrics) RecordTriggerDetected() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.stats.TriggersDetected++
+	m.IncrementCounter("triggers_detected")
 }
 
 // RecordEventProcessed records an event processing event
 func (m *Metrics) RecordEventProcessed() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.stats.EventsProcessed++
+	m.IncrementCounter("events_processed")
 }
 
 // IncrementHeartbeats increments the heartbeat counter
 func (m *Metrics) IncrementHeartbeats() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// TODO: Implement heartbeat metrics
+	m.IncrementCounter("heartbeats")
 }
 
 // IncrementHeartbeatErrors increments the heartbeat error counter
 func (m *Metrics) IncrementHeartbeatErrors() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// TODO: Implement heartbeat error metrics
+	m.IncrementCounter("heartbeat_errors")
 }
-
-// GetCurrentMetrics returns current metrics data
-func (m *Metrics) GetCurrentMetrics() map[string]interface{} {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return map[string]interface{}{
-		"metrics_exported":  m.stats.MetricsExported,
-		"triggers_detected": m.stats.TriggersDetected,
-		"events_processed":  m.stats.EventsProcessed,
-		"export_errors":     m.stats.ExportErrors,
-		"last_export":       m.stats.LastExport,
-	}
-}
-
-// Additional metrics methods used by sensor agent
 
 // IncrementTriggersDetected increments the triggers detected counter
 func (m *Metrics) IncrementTriggersDetected() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.stats.TriggersDetected++
+	m.IncrementCounter("triggers_detected")
 }
 
 // IncrementEventsDropped increments the events dropped counter
 func (m *Metrics) IncrementEventsDropped() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// TODO: Add events dropped to stats
+	m.IncrementCounter("events_dropped")
 }
 
 // IncrementEventProcessingErrors increments the event processing errors counter
 func (m *Metrics) IncrementEventProcessingErrors() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// TODO: Add event processing errors to stats
+	m.IncrementCounter("event_processing_errors")
 }
 
 // IncrementEventsProcessed increments the events processed counter
 func (m *Metrics) IncrementEventsProcessed() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.stats.EventsProcessed++
+	m.IncrementCounter("events_processed")
 }
 
 // UpdatePluginHealth updates plugin health metrics
 func (m *Metrics) UpdatePluginHealth(pluginID string, health *plugin.Health) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// TODO: Implement plugin health tracking
+	m.RecordMetric("plugin_health_"+pluginID, health)
 }
 
 // SetActivePlugins sets the number of active plugins
 func (m *Metrics) SetActivePlugins(count int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// TODO: Add active plugins to stats
+	m.SetGauge("active_plugins", float64(count))
 }
 
 // SetEventChannelSize sets the event channel size metric
 func (m *Metrics) SetEventChannelSize(size int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// TODO: Add event channel size to stats
+	m.SetGauge("event_channel_size", float64(size))
 }
 
-// HealthChecker performs health checks on sensor agent components
-type HealthChecker struct {
-	cfg       *config.HealthConfig
-	pluginMgr *PluginManager
-	logger    *zap.Logger
-	stats     *HealthStats
-	mu        sync.RWMutex
-}
+// HealthChecker is an alias to the shared health checker
+type HealthChecker = sharedagent.HealthChecker
 
-// HealthStats tracks health check statistics
-type HealthStats struct {
-	ChecksPassed int
-	ChecksFailed int
-	LastCheck    time.Time
-}
-
-// NewHealthChecker creates a new health checker
+// NewHealthChecker creates a new health checker for the sensor agent
 func NewHealthChecker(cfg *config.HealthConfig, pluginMgr *PluginManager, logger *zap.Logger) (*HealthChecker, error) {
-	return &HealthChecker{
-		cfg:       cfg,
-		pluginMgr: pluginMgr,
-		logger:    logger,
-		stats:     &HealthStats{},
-	}, nil
-}
-
-// Start starts the health checker
-func (hc *HealthChecker) Start(ctx context.Context) error {
-	hc.logger.Info("Starting health checker")
-	// TODO: Implement periodic health checks
-	return nil
-}
-
-// Stop stops the health checker
-func (hc *HealthChecker) Stop(ctx context.Context) error {
-	hc.logger.Info("Stopping health checker")
-	return nil
-}
-
-// GetStatus returns the health checker status
-func (hc *HealthChecker) GetStatus() *HealthCheckStatus {
-	hc.mu.RLock()
-	defer hc.mu.RUnlock()
-
-	return &HealthCheckStatus{
-		LastCheck:     hc.stats.LastCheck,
-		CheckInterval: 30 * time.Second, // Default interval
-		ChecksPassed:  hc.stats.ChecksPassed,
-		ChecksFailed:  hc.stats.ChecksFailed,
+	hc, err := sharedagent.NewHealthChecker(cfg, logger)
+	if err != nil {
+		return nil, err
 	}
-}
-
-// GetHealth returns the health checker health
-func (hc *HealthChecker) GetHealth() *ComponentHealth {
-	return &ComponentHealth{
-		Status:     HealthStatusHealthy,
-		LastCheck:  time.Now(),
-		ErrorCount: 0,
-	}
+	
+	// Register plugin manager for health checking
+	hc.RegisterComponent("plugin_manager", pluginMgr.GetHealth)
+	
+	return hc, nil
 }
 
 // TriggerDetector handles trigger detection and event generation
@@ -537,56 +173,28 @@ func (td *TriggerDetector) GetStatus() *DetectorStatus {
 }
 
 // GetHealth returns the trigger detector health
-func (td *TriggerDetector) GetHealth() *ComponentHealth {
-	return &ComponentHealth{
-		Status:     HealthStatusHealthy,
+func (td *TriggerDetector) GetHealth() *sharedagent.ComponentHealth {
+	return &sharedagent.ComponentHealth{
+		Status:     sharedagent.HealthStatusHealthy,
 		LastCheck:  time.Now(),
 		ErrorCount: 0,
 	}
 }
 
-// Status types for sensor agent components
+// Use shared types from the agent package
+type ComponentHealth = sharedagent.ComponentHealth
+type HealthStatus = sharedagent.HealthStatus
+type PluginStatus = sharedagent.PluginStatus
+type HealthCheckStatus = sharedagent.HealthCheckStatus
 
-// ComponentHealth represents the health of a component
-type ComponentHealth struct {
-	Status     HealthStatus `json:"status"`
-	LastCheck  time.Time    `json:"last_check"`
-	ErrorCount int          `json:"error_count"`
-	Message    string       `json:"message,omitempty"`
-}
-
-// HealthStatus represents the health status of a component
-type HealthStatus string
-
-const (
-	HealthStatusHealthy   HealthStatus = "healthy"
-	HealthStatusDegraded  HealthStatus = "degraded"
-	HealthStatusUnhealthy HealthStatus = "unhealthy"
-	HealthStatusUnknown   HealthStatus = "unknown"
-)
-
-// PluginStatus represents the status of plugins
-type PluginStatus struct {
-	Loaded  int `json:"loaded"`
-	Running int `json:"running"`
-	Errors  int `json:"errors"`
-}
-
-// MetricsStatus represents the status of metrics collection
+// Sensor-specific status types
 type MetricsStatus struct {
-	MetricsExported  int       `json:"metrics_exported"`
-	LastExport       time.Time `json:"last_export"`
-	ExportErrors     int       `json:"export_errors"`
-	TriggersDetected int       `json:"triggers_detected"`
-	EventsProcessed  int       `json:"events_processed"`
-}
-
-// HealthCheckStatus represents the status of health checks
-type HealthCheckStatus struct {
-	LastCheck     time.Time     `json:"last_check"`
-	CheckInterval time.Duration `json:"check_interval"`
-	ChecksPassed  int           `json:"checks_passed"`
-	ChecksFailed  int           `json:"checks_failed"`
+	MetricsExported  int                    `json:"metrics_exported"`
+	LastExport       time.Time              `json:"last_export"`
+	ExportErrors     int                    `json:"export_errors"`
+	TriggersDetected int                    `json:"triggers_detected"`
+	EventsProcessed  int                    `json:"events_processed"`
+	CustomMetrics    map[string]interface{} `json:"custom_metrics,omitempty"`
 }
 
 // DetectorStatus represents the status of trigger detection

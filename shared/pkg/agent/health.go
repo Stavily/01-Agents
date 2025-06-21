@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stavily/agents/shared/pkg/config"
-	"github.com/stavily/agents/shared/pkg/plugin"
 	"go.uber.org/zap"
 )
 

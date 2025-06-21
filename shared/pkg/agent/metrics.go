@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -37,6 +38,13 @@ type MetricsStatus struct {
 
 // NewMetricsCollector creates a new metrics collector
 func NewMetricsCollector(cfg *config.MetricsConfig, logger *zap.Logger) (*MetricsCollector, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("metrics config is required")
+	}
+	if logger == nil {
+		return nil, fmt.Errorf("logger is required")
+	}
+	
 	return &MetricsCollector{
 		cfg:           cfg,
 		logger:        logger,

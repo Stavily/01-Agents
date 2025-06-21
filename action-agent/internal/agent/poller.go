@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/stavily/agents/shared/pkg/agent"
 	"github.com/stavily/agents/shared/pkg/api"
 	"github.com/stavily/agents/shared/pkg/config"
 )
@@ -134,31 +135,31 @@ func (p *TaskPoller) GetStatus() *PollerStatus {
 }
 
 // GetHealth returns the poller health information
-func (p *TaskPoller) GetHealth() *ComponentHealth {
+func (p *TaskPoller) GetHealth() *agent.ComponentHealth {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	health := &ComponentHealth{
-		Status:     HealthStatusHealthy,
+	health := &agent.ComponentHealth{
+		Status:     agent.HealthStatusHealthy,
 		LastCheck:  time.Now(),
 		ErrorCount: p.stats.PollErrors,
 	}
 
 	if !p.running {
-		health.Status = HealthStatusUnhealthy
+		health.Status = agent.HealthStatusUnhealthy
 		health.Message = "Task poller is not running"
 		return health
 	}
 
 	// Check if we've had recent poll errors
 	if p.stats.PollErrors > 0 && time.Since(p.stats.LastPollTime) > p.pollInterval*2 {
-		health.Status = HealthStatusDegraded
+		health.Status = agent.HealthStatusDegraded
 		health.Message = "Recent polling errors detected"
 	}
 
 	// Check if last poll was too long ago
 	if time.Since(p.stats.LastPollTime) > p.pollInterval*3 {
-		health.Status = HealthStatusUnhealthy
+		health.Status = agent.HealthStatusUnhealthy
 		health.Message = "Polling has stalled"
 	}
 

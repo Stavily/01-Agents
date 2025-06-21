@@ -11,7 +11,7 @@ import (
 
 	"github.com/stavily/agents/shared/pkg/api"
 	"github.com/stavily/agents/shared/pkg/config"
-	"github.com/stavily/agents/shared/pkg/plugin"
+	sharedagent "github.com/stavily/agents/shared/pkg/agent"
 )
 
 // ActionAgent represents the main action agent instance
@@ -19,7 +19,7 @@ type ActionAgent struct {
 	cfg         *config.Config
 	logger      *zap.Logger
 	apiClient   *api.Client
-	pluginMgr   plugin.PluginManager
+	pluginMgr   *PluginManager
 	executor    *ActionExecutor
 	poller      *TaskPoller
 	metrics     *MetricsCollector
@@ -75,7 +75,7 @@ func NewActionAgent(cfg *config.Config, logger *zap.Logger) (*ActionAgent, error
 	}
 
 	// Create health monitor
-	healthCheck, err := NewHealthMonitor(&cfg.Health, pluginMgr.(*PluginManager), logger)
+	healthCheck, err := NewHealthMonitor(&cfg.Health, pluginMgr, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create health checker: %w", err)
 	}
@@ -210,7 +210,7 @@ func (a *ActionAgent) GetStatus() *AgentStatus {
 	}
 
 	if a.running {
-		status.PluginStatus = a.pluginMgr.(*PluginManager).GetPluginStatuses()
+		status.PluginStatus = a.pluginMgr.GetPluginStatuses()
 		status.ExecutorStatus = a.executor.GetStatus()
 		status.PollerStatus = a.poller.GetStatus()
 		status.HealthStatus = a.healthCheck.GetStatus()
@@ -227,39 +227,34 @@ func (a *ActionAgent) GetHealth() *AgentHealth {
 
 	health := &AgentHealth{
 		AgentID:    a.cfg.Agent.ID,
-		Status:     HealthStatusHealthy,
+		Status:     sharedagent.HealthStatusHealthy,
 		Timestamp:  time.Now(),
 		Uptime:     time.Since(a.startTime),
 		Components: make(map[string]*ComponentHealth),
 	}
 
 	if !a.running {
-		health.Status = HealthStatusUnhealthy
+		health.Status = sharedagent.HealthStatusUnhealthy
 		health.Message = "Agent is not running"
 		return health
 	}
 
 	// Check component health
-	components := map[string]HealthChecker{
-		"plugin_manager": a.pluginMgr.(*PluginManager),
-		"executor":       a.executor,
-		"poller":         a.poller,
-		"metrics":        a.metrics,
-		"health_check":   a.healthCheck,
-	}
+	health.Components["plugin_manager"] = a.pluginMgr.GetHealth()
+	health.Components["executor"] = a.executor.GetHealth()
+	health.Components["poller"] = a.poller.GetHealth()
+	health.Components["metrics"] = a.metrics.GetHealth()
+	health.Components["health_check"] = a.healthCheck.GetHealth()
 
 	overallHealthy := true
-	for name, component := range components {
-		componentHealth := component.GetHealth()
-		health.Components[name] = componentHealth
-
-		if componentHealth.Status != HealthStatusHealthy {
+	for _, componentHealth := range health.Components {
+		if componentHealth.Status != sharedagent.HealthStatusHealthy {
 			overallHealthy = false
 		}
 	}
 
 	if !overallHealthy {
-		health.Status = HealthStatusDegraded
+		health.Status = sharedagent.HealthStatusDegraded
 		health.Message = "One or more components are unhealthy"
 	}
 
@@ -329,33 +324,14 @@ type AgentHealth struct {
 	Components map[string]*ComponentHealth `json:"components"`
 }
 
-// HealthStatus represents the health status
-type HealthStatus string
-
-const (
-	HealthStatusHealthy   HealthStatus = "healthy"
-	HealthStatusDegraded  HealthStatus = "degraded"
-	HealthStatusUnhealthy HealthStatus = "unhealthy"
-)
-
-// ComponentHealth represents the health of a component
-type ComponentHealth struct {
-	Status     HealthStatus `json:"status"`
-	Message    string       `json:"message,omitempty"`
-	LastCheck  time.Time    `json:"last_check"`
-	ErrorCount int          `json:"error_count"`
-}
+// Import shared types
+type HealthStatus = sharedagent.HealthStatus
+type ComponentHealth = sharedagent.ComponentHealth
+type PluginStatus = sharedagent.PluginStatus
 
 // HealthChecker interface for components that can report health
 type HealthChecker interface {
 	GetHealth() *ComponentHealth
-}
-
-// PluginStatus represents the status of plugins
-type PluginStatus struct {
-	Loaded  int `json:"loaded"`
-	Running int `json:"running"`
-	Errors  int `json:"errors"`
 }
 
 // ExecutorStatus represents the status of the action executor
@@ -374,17 +350,5 @@ type PollerStatus struct {
 	PollErrors    int           `json:"poll_errors"`
 }
 
-// HealthCheckStatus represents the status of the health checker
-type HealthCheckStatus struct {
-	LastCheck     time.Time     `json:"last_check"`
-	CheckInterval time.Duration `json:"check_interval"`
-	ChecksPassed  int           `json:"checks_passed"`
-	ChecksFailed  int           `json:"checks_failed"`
-}
-
-// MetricsStatus represents the status of the metrics collector
-type MetricsStatus struct {
-	MetricsExported int       `json:"metrics_exported"`
-	LastExport      time.Time `json:"last_export"`
-	ExportErrors    int       `json:"export_errors"`
-}
+type HealthCheckStatus = sharedagent.HealthCheckStatus
+type MetricsStatus = sharedagent.MetricsStatus

@@ -12,6 +12,7 @@ import (
 	"github.com/stavily/agents/shared/pkg/api"
 	"github.com/stavily/agents/shared/pkg/config"
 	"github.com/stavily/agents/shared/pkg/plugin"
+	sharedagent "github.com/stavily/agents/shared/pkg/agent"
 )
 
 // ActionExecutor executes action tasks using plugins
@@ -210,13 +211,13 @@ func (e *ActionExecutor) GetHealth() *ComponentHealth {
 	defer e.mu.RUnlock()
 
 	health := &ComponentHealth{
-		Status:     HealthStatusHealthy,
+		Status:     sharedagent.HealthStatusHealthy,
 		LastCheck:  time.Now(),
 		ErrorCount: e.stats.TasksFailed,
 	}
 
 	if !e.running {
-		health.Status = HealthStatusUnhealthy
+		health.Status = sharedagent.HealthStatusUnhealthy
 		health.Message = "Action executor is not running"
 		return health
 	}
@@ -224,7 +225,7 @@ func (e *ActionExecutor) GetHealth() *ComponentHealth {
 	// Check if task queue is backing up
 	queueUtilization := float64(len(e.taskQueue)) / float64(cap(e.taskQueue))
 	if queueUtilization > 0.8 {
-		health.Status = HealthStatusDegraded
+		health.Status = sharedagent.HealthStatusDegraded
 		health.Message = "Task queue is near capacity"
 	}
 
@@ -232,7 +233,7 @@ func (e *ActionExecutor) GetHealth() *ComponentHealth {
 	if e.stats.TasksExecuted > 0 {
 		failureRate := float64(e.stats.TasksFailed) / float64(e.stats.TasksExecuted)
 		if failureRate > 0.1 { // More than 10% failure rate
-			health.Status = HealthStatusDegraded
+			health.Status = sharedagent.HealthStatusDegraded
 			health.Message = "High task failure rate"
 		}
 	}
