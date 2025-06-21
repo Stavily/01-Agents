@@ -1,0 +1,49 @@
+plugin:
+  id: "service-restart"
+  name: "Service Restart"
+  description: "Restarts system services using systemctl or other service managers"
+  version: "1.0.0"
+  author: "Stavily Team"
+  license: "MIT"
+  type: "action"
+  
+  # Python execution configuration
+  runtime:
+    type: "python"
+    version: "3.8+"
+    entry_point: "service_restart.py"
+    requirements: "requirements.txt"
+  
+  # Plugin configuration schema
+  configuration:
+    allowed_services:
+      type: "array"
+      description: "List of services allowed to be restarted"
+      default: []
+      items:
+        type: "string"
+    service_manager:
+      type: "string"
+      description: "Service manager to use (systemctl, service, docker)"
+      default: "systemctl"
+      enum: ["systemctl", "service", "docker"]
+  
+  # Resource limits
+  limits:
+    memory: "128MB"
+    cpu: "0.2"
+    execution_time: "300s"
+  
+  # Permissions
+  permissions:
+    network: false
+    filesystem:
+      read:
+        - "/etc/systemd"
+        - "/usr/bin/systemctl"
+        - "/usr/sbin/service"
+      write: []
+    system_calls:
+      - "execve"
+    capabilities:
+      - "CAP_SYS_ADMIN"  # Required for service management 

@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  sensor-agent:
+    extends:
+      file: ../../docker-compose.yml
+      service: sensor-agent
+    environment:
+      - STAVILY_AGENT_TOKEN=${STAVILY_AGENT_TOKEN}
+    ports:
+      - "8080:8080"  # Health check
+      - "9090:9090"  # Metrics
+
+  action-agent:
+    extends:
+      file: ../../docker-compose.yml
+      service: action-agent
+    environment:
+      - STAVILY_AGENT_TOKEN=${STAVILY_AGENT_TOKEN}
+    ports:
+      - "8081:8081"  # Health check
+      - "9091:9091"  # Metrics 

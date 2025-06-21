@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  sensor-agent:
+    build:
+      context: ./sensor-agent
+      dockerfile: Dockerfile
+    container_name: stavily-sensor-agent
+    hostname: sensor-agent
+    restart: unless-stopped
+    environment:
+      - STAVILY_AGENT_TOKEN=${STAVILY_AGENT_TOKEN}
+    volumes:
+      - sensor_data:/opt/stavily/agent-sensor-agent-docker-001
+      - ./sensor-agent/configs/dev.yaml:/etc/stavily/sensor-agent.yaml:ro
+      - ./examples/plugins:/opt/stavily/examples:ro
+    networks:
+      - stavily-agents
+
+  action-agent:
+    build:
+      context: ./action-agent
+      dockerfile: Dockerfile
+    container_name: stavily-action-agent
+    hostname: action-agent
+    restart: unless-stopped
+    environment:
+      - STAVILY_AGENT_TOKEN=${STAVILY_AGENT_TOKEN}
+    volumes:
+      - action_data:/opt/stavily/agent-action-agent-docker-001
+      - ./action-agent/configs/dev.yaml:/etc/stavily/action-agent.yaml:ro
+      - ./examples/plugins:/opt/stavily/examples:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # For Docker actions
+    networks:
+      - stavily-agents
+
+networks:
+  stavily-agents:
+    driver: bridge
+
+volumes:
+  sensor_data:
+    driver: local
+  action_data:
+    driver: local 

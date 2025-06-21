@@ -1,0 +1,92 @@
+# Stavily Action Agent - Standard Configuration
+# This configuration follows the standardized format defined in CONFIGURATION_GUIDE.md
+
+agent:
+  id: "action-{HOSTNAME}-001"
+  name: "Action Agent - {HOSTNAME}"
+  type: "action"
+  organization_id: "your-org-id"
+  base_dir: "/opt/stavily/agent-{AGENT_ID}"
+  environment: "production"
+  tags:
+    - "datacenter:us-east-1"
+    - "tier:compute"
+    - "role:execution"
+  heartbeat_interval: "30s"
+  registration_retry_interval: "60s"
+
+api:
+  base_url: "https://agents.stavily.com"
+  timeout: "30s"
+  retry:
+    max_attempts: 3
+    backoff: "exponential"
+    initial_interval: "1s"
+    max_interval: "60s"
+  auth:
+    type: "jwt"
+    token_file: "/opt/stavily/agent-{AGENT_ID}/config/certificates/agent.jwt"
+    refresh_threshold: "5m"
+  rate_limit:
+    requests_per_second: 10
+    burst: 20
+
+logging:
+  level: "info"
+  format: "json"
+  file: "/opt/stavily/agent-{AGENT_ID}/logs/action-agent.log"
+  max_size: 100
+  max_backups: 5
+  max_age: 30
+  compress: true
+
+security:
+  sandbox:
+    enabled: true
+    user: "stavily"
+    chroot: "/opt/stavily"
+  tls:
+    enabled: true
+    min_version: "1.3"
+    cipher_suites: []
+  audit:
+    enabled: true
+    file: "/opt/stavily/agent-{AGENT_ID}/logs/audit/action-audit.log"
+
+plugins:
+  dir: "/opt/stavily/agent-{AGENT_ID}/data/plugins"
+  config_dir: "/opt/stavily/agent-{AGENT_ID}/config/plugins"
+  auto_update: true
+  update_interval: "1h"
+  max_memory: "512MB"
+  timeout: "10m"
+  allowed_plugins:
+    - "service-restart"
+    - "shell-command"
+    - "python-script"
+    - "file-operations"
+    - "api-call"
+  blocked_plugins: []
+
+health:
+  enabled: true
+  port: 8081
+  path: "/health"
+  bind: "0.0.0.0"
+
+metrics:
+  enabled: true
+  port: 9091
+  path: "/metrics"
+  bind: "127.0.0.1"
+  namespace: "stavily_action"
+
+# Action-specific settings
+action:
+  poll_interval: "5s"
+  max_concurrent_actions: 3
+  action_timeout: "30m"
+  result_buffer_size: 100
+  work_dir: "/opt/stavily/agent-{AGENT_ID}/tmp/workdir"
+  max_output_size: "10MB"
+  cleanup_interval: "1h" 

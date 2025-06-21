@@ -1,0 +1,47 @@
+plugin:
+  id: "cpu-monitor"
+  name: "CPU Monitor"
+  description: "Monitors CPU usage and triggers alerts when threshold is exceeded"
+  version: "1.0.0"
+  author: "Stavily Team"
+  license: "MIT"
+  type: "trigger"
+  
+  # Python execution configuration
+  runtime:
+    type: "python"
+    version: "3.8+"
+    entry_point: "cpu_monitor.py"
+    requirements: "requirements.txt"
+  
+  # Plugin configuration schema
+  configuration:
+    threshold:
+      type: "number"
+      description: "CPU usage threshold percentage (0-100)"
+      default: 80.0
+      minimum: 0.0
+      maximum: 100.0
+    interval:
+      type: "integer"
+      description: "Monitoring interval in seconds"
+      default: 30
+      minimum: 1
+  
+  # Resource limits
+  limits:
+    memory: "64MB"
+    cpu: "0.1"
+    execution_time: "60s"
+  
+  # Permissions
+  permissions:
+    network: false
+    filesystem:
+      read:
+        - "/proc/stat"
+        - "/proc/cpuinfo"
+        - "/proc/loadavg"
+      write: []
+    system_calls:
+      - "sysinfo" 
