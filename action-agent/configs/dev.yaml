@@ -4,79 +4,86 @@ agent:
   id: "action-agent-dev-001"
   name: "Development Action Agent"
   type: "action"
-  organization_id: "dev-tenant"
-  base_dir: "/opt/stavily/agent-{AGENT_ID}"
-  environment: "development"
+  tenant_id: "dev-tenant"
+  environment: "dev"
+  version: "1.0.0"
+  region: "us-east-1"
   tags:
     - "development"
     - "execution"
-  heartbeat_interval: "30s"
-  registration_retry_interval: "60s"
+  heartbeat: "30s"
+  # Action agent specific fields (required)
+  poll_interval: "30s"
+  max_concurrent_tasks: 5
+  task_timeout: "60s"
 
 api:
   base_url: "https://agents.stavily.com"
+  agents_endpoint: "/api/v1/agents"
   timeout: "30s"
-  retry:
-    max_attempts: 3
-    backoff: "exponential"
-    initial_interval: "1s"
-    max_interval: "60s"
+  retry_attempts: 3
+  retry_delay: "5s"
+  rate_limit_rps: 10
+  max_idle_conns: 10
+  idle_conn_timeout: "90s"
+  user_agent: "Stavily-Action-Agent/1.0.0"
+
+security:
+  tls:
+    enabled: false
+    min_version: "1.3"
   auth:
-    type: "jwt"
-    token_file: "/opt/stavily/agent-{AGENT_ID}/config/certificates/agent.jwt"
-    refresh_threshold: "5m"
-  rate_limit:
-    requests_per_second: 10
-    burst: 20
+    method: "jwt"
+    token_file: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-action-dev/config/certificates/agent.jwt"
+    token_ttl: "1h"
+  sandbox:
+    enabled: true
+    max_memory: 134217728  # 128MB in bytes
+    max_cpu: 0.5  # 0.5 CPU cores
+    max_exec_time: "30s"
+    max_file_size: 10485760  # 10MB in bytes
+    network_access: false
+  audit:
+    enabled: true
+    log_file: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-action-dev/logs/audit/action-audit.log"
+    max_size: 100
+    max_backups: 10
+    max_age: 30
 
 plugins:
-  dir: "/opt/stavily/agent-{AGENT_ID}/data/plugins"
-  config_dir: "/opt/stavily/agent-{AGENT_ID}/config/plugins"
-  auto_update: true
-  update_interval: "1h"
-  max_memory: "512MB"
-  timeout: "10m"
-  allowed_plugins:
-    - "service-restart"
-    - "shell-command"
-    - "python-script"
-    - "file-operations"
-    - "api-call"
-  blocked_plugins: []
+  directory: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-action-dev/plugins"
+  auto_load: true
+  watch_changes: true
+  update_check: "1h"
+  timeout: "30s"  # Fixed: was "10m", max allowed is 300s
+  max_concurrent: 5
+  registry:
+    url: "https://plugins.stavily.dev"
+    auth: false
+    cache_dir: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-action-dev/cache/plugins"
+    cache_ttl: "24h"
 
 logging:
   level: "debug"
   format: "text"
-  file: "/opt/stavily/agent-{AGENT_ID}/logs/action-agent.log"
+  output: "file"
+  file: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-action-dev/logs/action-agent.log"
   max_size: 100
   max_backups: 5
   max_age: 30
   compress: true
 
-security:
-  sandbox:
-    enabled: true
-    user: "stavily"
-    chroot: "/opt/stavily"
-  tls:
-    enabled: false  # Disabled for development
-    min_version: "1.3"
-    cipher_suites: []
-  audit:
-    enabled: true
-    file: "/opt/stavily/agent-{AGENT_ID}/logs/audit/action-audit.log"
-
 health:
   enabled: true
   port: 8081
   path: "/health"
-  bind: "0.0.0.0"
+  interval: "30s"
+  timeout: "10s"
 
 metrics:
   enabled: true
   port: 9091
   path: "/metrics"
-  bind: "127.0.0.1"
   namespace: "stavily_action"
 
 # Action-specific settings
@@ -85,6 +92,6 @@ action:
   max_concurrent_actions: 3
   action_timeout: "30m"
   result_buffer_size: 100
-  work_dir: "/opt/stavily/agent-{AGENT_ID}/tmp/workdir"
+  work_dir: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-action-dev/tmp/workdir"
   max_output_size: "10MB"
   cleanup_interval: "1h" 

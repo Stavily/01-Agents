@@ -34,7 +34,7 @@ security:
     min_version: "1.3"
   auth:
     method: "jwt"
-    token_file: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-sensor-dev/config/certificates/agent.jwt"
+    token_file: "/opt/stavily/agent-{AGENT_ID}/config/certificates/agent.jwt"
     token_ttl: "1h"
   sandbox:
     enabled: true
@@ -43,15 +43,9 @@ security:
     max_exec_time: "30s"
     max_file_size: 10485760  # 10MB in bytes
     network_access: false
-    allowed_paths:  # Required for sensor agents
-      - "/var/log"
-      - "/proc"
-      - "/sys"
-      - "/tmp"
-      - "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-sensor-dev"
   audit:
     enabled: true
-    log_file: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-sensor-dev/logs/audit/sensor-audit.log"
+    log_file: "/opt/stavily/agent-{AGENT_ID}/logs/audit/sensor-audit.log"
     max_size: 100
     max_backups: 10
     max_age: 30
@@ -60,7 +54,7 @@ logging:
   level: "debug"
   format: "text"
   output: "file"
-  file: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-sensor-dev/logs/sensor-agent.log"
+  file: "/opt/stavily/agent-{AGENT_ID}/logs/sensor-agent.log"
   max_size: 100
   max_backups: 10
   max_age: 30
@@ -80,7 +74,7 @@ metrics:
   namespace: "stavily_sensor"
 
 plugins:
-  directory: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-sensor-dev/plugins"
+  directory: "/opt/stavily/agent-{AGENT_ID}/plugins"
   auto_load: true
   watch_changes: true
   update_check: "1h"
@@ -89,7 +83,7 @@ plugins:
   registry:
     url: "https://plugins.stavily.dev"
     auth: false
-    cache_dir: "/home/eduardez/workspace/otros/WSL2/Stavily/agent_test_dir/agent-sensor-dev/cache/plugins"
+    cache_dir: "/opt/stavily/agent-{AGENT_ID}/cache/plugins"
     cache_ttl: "24h"
 
 # Sensor-specific settings
