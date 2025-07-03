@@ -40,6 +40,14 @@ type PollerStats struct {
 	LastPollTime  time.Time
 }
 
+// PollerStatus represents the current status of the task poller
+type PollerStatus struct {
+	LastPoll      time.Time     `json:"last_poll"`
+	PollInterval  time.Duration `json:"poll_interval"`
+	TasksReceived int           `json:"tasks_received"`
+	PollErrors    int           `json:"poll_errors"`
+}
+
 // NewTaskPoller creates a new task poller
 func NewTaskPoller(cfg *config.Config, apiClient *api.Client, executor *ActionExecutor, logger *zap.Logger) (*TaskPoller, error) {
 	if cfg == nil {

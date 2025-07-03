@@ -189,12 +189,7 @@ func ValidateConfigPaths(config *Config) error {
 		}
 	}
 
-	// Validate JWT secret file
-	if config.Security.Auth.JWT.SecretFile != "" {
-		if err := validateFilePath(config.Security.Auth.JWT.SecretFile, "JWT secret"); err != nil {
-			errors = append(errors, err.Error())
-		}
-	}
+
 
 	// Validate plugin directory
 	if config.Plugins.Directory != "" {

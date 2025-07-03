@@ -1,0 +1,120 @@
+# Stavily Action Agent - Localhost Orchestrator Configuration
+# This config connects to orchestrator running at localhost:8000
+
+agent:
+  id: "action-${HOSTNAME}-001"  # Will be replaced during setup
+  name: "Action Agent - ${HOSTNAME}"
+  type: "action"
+  organization_id: "your-org-id"  # Replace with actual org ID
+  environment: "production"
+  version: "1.0.0"
+  region: "localhost"
+  tags:
+    - "localhost"
+    - "action"
+    - "mvp"
+  heartbeat_interval: "30s"
+  registration_retry_interval: "60s"
+  
+  # Action agent specific fields (required)
+  poll_interval: "30s"
+  max_concurrent_tasks: 5
+  task_timeout: "60s"
+
+api:
+  base_url: "http://localhost:8000"  # Orchestrator endpoint
+  agents_endpoint: "/api/v1/agents"
+  timeout: "30s"
+  retry:
+    max_attempts: 3
+    backoff: "exponential"
+  retry_attempts: 3
+  retry_delay: "5s"
+  rate_limit_rps: 10
+  max_idle_conns: 10
+  idle_conn_timeout: "90s"
+  user_agent: "Stavily-Action-Agent/1.0.0"
+
+security:
+  tls:
+    enabled: true
+    min_version: "1.3"
+    cert_file: "/opt/stavily/agent-action-${HOSTNAME}-001/config/certificates/agent.crt"
+    key_file: "/opt/stavily/agent-action-${HOSTNAME}-001/config/certificates/agent.key" 
+    ca_file: "/opt/stavily/agent-action-${HOSTNAME}-001/config/certificates/ca.crt"
+    server_name: "localhost"
+    insecure_skip_verify: true  # For localhost development
+  auth:
+    type: "jwt"
+    method: "jwt"
+    token_file: "/opt/stavily/agent-action-${HOSTNAME}-001/config/certificates/agent.jwt"
+    token_ttl: "1h"
+  sandbox:
+    enabled: true
+    user: "stavily"
+    chroot: "/opt/stavily"
+    max_memory: 536870912  # 512MB in bytes
+    max_cpu: 1.0  # 1.0 CPU cores
+    max_exec_time: "30m"  # 30 minutes for actions
+    max_file_size: 10485760  # 10MB in bytes
+    network_access: true  # Actions may need network access
+    allowed_paths:
+      - "/opt/stavily/agent-action-${HOSTNAME}-001"
+      - "/tmp"
+      - "/var/tmp"
+  audit:
+    enabled: true
+    log_file: "/opt/stavily/agent-action-${HOSTNAME}-001/logs/audit/action-audit.log"
+    max_size: 100
+    max_backups: 10
+    max_age: 30
+
+plugins:
+  directory: "/opt/stavily/agent-action-${HOSTNAME}-001/data/plugins"
+  auto_load: true
+  watch_changes: true
+  update_check: "1h"
+  timeout: "30m"  # Extended timeout for action plugins
+  max_concurrent: 3
+  max_memory: "512MB"
+  allowed_plugins:
+    - "service-restart"
+    - "shell-command"
+    - "python-script"
+  registry:
+    url: "https://plugins.stavily.dev"
+    auth: false
+    cache_dir: "/opt/stavily/agent-action-${HOSTNAME}-001/cache/plugins"
+    cache_ttl: "24h"
+
+logging:
+  level: "info"
+  format: "json"
+  output: "file"
+  file: "/opt/stavily/agent-action-${HOSTNAME}-001/logs/action-agent.log"
+  max_size: 100
+  max_backups: 5
+  max_age: 30
+  compress: true
+
+health:
+  enabled: true
+  port: 8081  # Action Agent health port
+  path: "/health"
+  interval: "30s"
+  timeout: "10s"
+
+metrics:
+  enabled: true
+  port: 9091  # Action Agent metrics port
+  path: "/metrics"
+  namespace: "stavily_action"
+
+# Action-specific settings
+action:
+  max_concurrent_actions: 3
+  work_dir: "/opt/stavily/agent-action-${HOSTNAME}-001/tmp/workdir"
+  action_timeout: "30m"
+  result_buffer_size: 100
+  max_output_size: "10MB"
+  cleanup_interval: "1h" 

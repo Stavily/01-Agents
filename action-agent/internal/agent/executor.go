@@ -206,11 +206,11 @@ func (e *ActionExecutor) GetStatus() *ExecutorStatus {
 }
 
 // GetHealth returns the executor health information
-func (e *ActionExecutor) GetHealth() *ComponentHealth {
+func (e *ActionExecutor) GetHealth() *sharedagent.ComponentHealth {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	health := &ComponentHealth{
+	health := &sharedagent.ComponentHealth{
 		Status:     sharedagent.HealthStatusHealthy,
 		LastCheck:  time.Now(),
 		ErrorCount: e.stats.TasksFailed,

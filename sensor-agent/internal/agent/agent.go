@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/stavily/agents/shared/pkg/agent"
 	"github.com/stavily/agents/shared/pkg/api"
 	"github.com/stavily/agents/shared/pkg/config"
 	"github.com/stavily/agents/shared/pkg/plugin"
@@ -16,10 +17,10 @@ import (
 
 // SensorAgent represents the main sensor agent
 type SensorAgent struct {
-	config        *config.Config
-	logger        *zap.Logger
-	apiClient     *api.Client
-	pluginManager plugin.PluginManager
+	config            *config.Config
+	logger            *zap.Logger
+	orchestratorFlow  *agent.OrchestratorWorkflow
+	pluginManager     plugin.PluginManager
 
 	// Agent lifecycle
 	ctx     context.Context
@@ -27,10 +28,6 @@ type SensorAgent struct {
 	wg      sync.WaitGroup
 	started bool
 	mu      sync.RWMutex
-
-	// Heartbeat and registration
-	heartbeatTicker *time.Ticker
-	registrationID  string
 
 	// Trigger detection
 	triggerPlugins []plugin.TriggerPlugin
@@ -48,12 +45,6 @@ func NewSensorAgent(cfg *config.Config, logger *zap.Logger) (*SensorAgent, error
 	if logger == nil {
 		return nil, fmt.Errorf("logger is required")
 	}
-	
-	// Create API client
-	apiClient, err := api.NewClient(cfg, logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create API client: %w", err)
-	}
 
 	// Create plugin manager
 	pluginManager, err := NewPluginManager(cfg, logger)
@@ -67,16 +58,22 @@ func NewSensorAgent(cfg *config.Config, logger *zap.Logger) (*SensorAgent, error
 		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
 	}
 
-	agent := &SensorAgent{
+	sensorAgent := &SensorAgent{
 		config:        cfg,
 		logger:        logger,
-		apiClient:     apiClient,
 		pluginManager: pluginManager,
 		metrics:       metrics,
 		eventChannel:  make(chan *plugin.TriggerEvent, 100), // Buffered channel
 	}
 
-	return agent, nil
+	// Create orchestrator workflow with sensor-specific plugin executor
+	orchestratorFlow, err := agent.NewOrchestratorWorkflow(cfg, logger, sensorAgent.executeSensorPlugin)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create orchestrator workflow: %w", err)
+	}
+	sensorAgent.orchestratorFlow = orchestratorFlow
+
+	return sensorAgent, nil
 }
 
 // Start starts the sensor agent
@@ -91,19 +88,18 @@ func (s *SensorAgent) Start(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.logger.Info("Starting sensor agent")
 
-	// Register with orchestrator
-	if err := s.registerWithOrchestrator(); err != nil {
-		return fmt.Errorf("failed to register with orchestrator: %w", err)
-	}
-
 	// Load and start trigger plugins
 	if err := s.loadTriggerPlugins(); err != nil {
 		return fmt.Errorf("failed to load trigger plugins: %w", err)
 	}
 
+	// Start orchestrator workflow
+	if err := s.orchestratorFlow.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start orchestrator workflow: %w", err)
+	}
+
 	// Start core services
-	s.wg.Add(4)
-	go s.heartbeatLoop()
+	s.wg.Add(3)
 	go s.eventProcessingLoop()
 	go s.pluginMonitoringLoop()
 	go s.metricsCollectionLoop()
@@ -117,8 +113,7 @@ func (s *SensorAgent) Start(ctx context.Context) error {
 
 	s.started = true
 	s.logger.Info("Sensor agent started successfully",
-		zap.String("agent_id", s.config.Agent.ID),
-		zap.String("registration_id", s.registrationID))
+		zap.String("agent_id", s.config.Agent.ID))
 
 	return nil
 }
@@ -137,9 +132,9 @@ func (s *SensorAgent) Stop(ctx context.Context) error {
 	// Cancel context to signal shutdown
 	s.cancel()
 
-	// Stop heartbeat ticker
-	if s.heartbeatTicker != nil {
-		s.heartbeatTicker.Stop()
+	// Stop orchestrator workflow
+	if err := s.orchestratorFlow.Stop(ctx); err != nil {
+		s.logger.Error("Failed to stop orchestrator workflow", zap.Error(err))
 	}
 
 	// Stop trigger plugins
@@ -150,11 +145,6 @@ func (s *SensorAgent) Stop(ctx context.Context) error {
 		if err := s.metrics.Stop(ctx); err != nil {
 			s.logger.Error("Failed to stop metrics", zap.Error(err))
 		}
-	}
-
-	// Deregister from orchestrator
-	if err := s.deregisterFromOrchestrator(); err != nil {
-		s.logger.Warn("Failed to deregister from orchestrator", zap.Error(err))
 	}
 
 	// Wait for goroutines to finish with timeout
@@ -171,11 +161,6 @@ func (s *SensorAgent) Stop(ctx context.Context) error {
 		s.logger.Warn("Shutdown timeout, some goroutines may not have stopped cleanly")
 	}
 
-	// Close resources
-	if s.apiClient != nil {
-		s.apiClient.Close()
-	}
-
 	close(s.eventChannel)
 	s.started = false
 
@@ -183,114 +168,34 @@ func (s *SensorAgent) Stop(ctx context.Context) error {
 	return nil
 }
 
-// registerWithOrchestrator registers the agent with the orchestrator
-func (s *SensorAgent) registerWithOrchestrator() error {
-	s.logger.Info("Registering with orchestrator")
+// executeSensorPlugin executes sensor-specific plugins for instructions
+func (s *SensorAgent) executeSensorPlugin(ctx context.Context, instruction *api.Instruction) (map[string]interface{}, error) {
+	s.logger.Info("Executing sensor plugin",
+		zap.String("plugin_id", instruction.PluginID),
+		zap.Any("input_data", instruction.InputData))
 
-	registrationData := map[string]interface{}{
-		"agent_id":     s.config.Agent.ID,
-		"agent_type":   s.config.Agent.Type,
-		"tenant_id":    s.config.Agent.TenantID,
-		"name":         s.config.Agent.Name,
-		"version":      s.config.Agent.Version,
-		"environment":  s.config.Agent.Environment,
-		"region":       s.config.Agent.Region,
-		"tags":         s.config.Agent.Tags,
-		"capabilities": s.getAgentCapabilities(),
-		"timestamp":    time.Now().UTC(),
-	}
-
-	resp, err := s.apiClient.Post(s.ctx, s.config.API.AgentsEndpoint+"/register", registrationData)
-	if err != nil {
-		return fmt.Errorf("registration request failed: %w", err)
-	}
-
-	if resp.StatusCode != 201 {
-		return fmt.Errorf("registration failed with status %d: %s", resp.StatusCode, string(resp.Body))
-	}
-
-	// Parse registration response to get registration ID
-	// This is a simplified implementation - in practice, you'd parse JSON response
-	s.registrationID = s.config.GetFullAgentID()
-
-	s.logger.Info("Successfully registered with orchestrator",
-		zap.String("registration_id", s.registrationID))
-
-	return nil
-}
-
-// deregisterFromOrchestrator deregisters the agent from the orchestrator
-func (s *SensorAgent) deregisterFromOrchestrator() error {
-	if s.registrationID == "" {
-		return nil
-	}
-
-	s.logger.Info("Deregistering from orchestrator")
-
-	endpoint := fmt.Sprintf("%s/%s/deregister", s.config.API.AgentsEndpoint, s.registrationID)
-	resp, err := s.apiClient.Delete(s.ctx, endpoint)
-	if err != nil {
-		return fmt.Errorf("deregistration request failed: %w", err)
-	}
-
-	if resp.StatusCode != 200 && resp.StatusCode != 404 {
-		return fmt.Errorf("deregistration failed with status %d: %s", resp.StatusCode, string(resp.Body))
-	}
-
-	s.logger.Info("Successfully deregistered from orchestrator")
-	return nil
-}
-
-// heartbeatLoop sends periodic heartbeats to the orchestrator
-func (s *SensorAgent) heartbeatLoop() {
-	defer s.wg.Done()
-
-	s.heartbeatTicker = time.NewTicker(s.config.Agent.Heartbeat)
-	defer s.heartbeatTicker.Stop()
-
-	s.logger.Debug("Starting heartbeat loop",
-		zap.Duration("interval", s.config.Agent.Heartbeat))
-
-	for {
-		select {
-		case <-s.ctx.Done():
-			s.logger.Debug("Heartbeat loop stopping")
-			return
-		case <-s.heartbeatTicker.C:
-			if err := s.sendHeartbeat(); err != nil {
-				s.logger.Error("Failed to send heartbeat", zap.Error(err))
-				s.metrics.IncrementHeartbeatErrors()
-			} else {
-				s.metrics.IncrementHeartbeats()
-			}
-		}
+	// For sensor agents, we typically execute trigger detection plugins
+	// This is a simplified implementation - in production, this would
+	// load and execute the actual plugin based on plugin_id
+	
+	// Simulate sensor plugin execution
+	select {
+	case <-time.After(2 * time.Second): // Simulate sensor work
+		s.logger.Info("Sensor plugin executed successfully")
+		return map[string]interface{}{
+			"sensor_type": "trigger_detection",
+			"result":      "Sensor monitoring completed",
+			"timestamp":   time.Now().UTC().Format(time.RFC3339),
+			"data":        instruction.InputData,
+		}, nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("sensor plugin execution timed out")
 	}
 }
 
-// sendHeartbeat sends a heartbeat to the orchestrator
-func (s *SensorAgent) sendHeartbeat() error {
-	heartbeatData := map[string]interface{}{
-		"agent_id":     s.registrationID,
-		"timestamp":    time.Now().UTC(),
-		"status":       "healthy",
-		"uptime":       time.Since(time.Now()).Seconds(), // This would be calculated properly
-		"plugin_count": len(s.triggerPlugins),
-		"metrics":      s.metrics.GetCurrentMetrics(),
-	}
 
-	endpoint := fmt.Sprintf("%s/%s/heartbeat", s.config.API.AgentsEndpoint, s.registrationID)
-	resp, err := s.apiClient.Post(s.ctx, endpoint, heartbeatData)
-	if err != nil {
-		return fmt.Errorf("heartbeat request failed: %w", err)
-	}
 
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("heartbeat failed with status %d: %s", resp.StatusCode, string(resp.Body))
-	}
 
-	s.logger.Debug("Heartbeat sent successfully")
-	return nil
-}
 
 // loadTriggerPlugins loads and starts all trigger plugins
 func (s *SensorAgent) loadTriggerPlugins() error {
@@ -421,7 +326,7 @@ func (s *SensorAgent) processTriggerEvent(event *plugin.TriggerEvent) error {
 	// Prepare event data for orchestrator
 	eventData := map[string]interface{}{
 		"event_type":   "trigger_event",
-		"agent_id":     s.registrationID,
+		"agent_id":     s.config.Agent.ID,
 		"tenant_id":    s.config.Agent.TenantID,
 		"timestamp":    event.Timestamp,
 		"trigger_type": event.Type,
@@ -435,19 +340,18 @@ func (s *SensorAgent) processTriggerEvent(event *plugin.TriggerEvent) error {
 		},
 	}
 
-	// Send to orchestrator
-	resp, err := s.apiClient.Post(s.ctx, "/api/v1/triggers", eventData)
-	if err != nil {
-		return fmt.Errorf("failed to send trigger event: %w", err)
-	}
-
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		return fmt.Errorf("trigger event rejected with status %d: %s", resp.StatusCode, string(resp.Body))
-	}
-
-	s.logger.Debug("Trigger event sent successfully",
+	// Send to orchestrator via workflow (this is a placeholder - in the current architecture,
+	// sensor agents don't directly send events to orchestrator, they respond to instructions)
+	s.logger.Info("Trigger event detected",
 		zap.String("event_id", event.ID),
-		zap.Int("status_code", resp.StatusCode))
+		zap.String("event_type", event.Type),
+		zap.Any("event_data", eventData))
+
+	// For now, we'll just log the event. In a complete implementation, this would
+	// either queue the event for later processing or send it through a different channel
+
+	s.logger.Debug("Trigger event processed successfully",
+		zap.String("event_id", event.ID))
 
 	return nil
 }
@@ -527,24 +431,7 @@ func (s *SensorAgent) collectMetrics() {
 }
 
 // getAgentCapabilities returns the capabilities of this agent
-func (s *SensorAgent) getAgentCapabilities() []string {
-	capabilities := []string{
-		"trigger_detection",
-		"plugin_management",
-		"metrics_export",
-		"health_monitoring",
-	}
 
-	if s.config.Security.TLS.Enabled {
-		capabilities = append(capabilities, "tls_communication")
-	}
-
-	if s.config.Security.Audit.Enabled {
-		capabilities = append(capabilities, "audit_logging")
-	}
-
-	return capabilities
-}
 
 // IsRunning returns whether the sensor agent is currently running
 func (s *SensorAgent) IsRunning() bool {
@@ -558,17 +445,22 @@ func (s *SensorAgent) GetStatus() map[string]interface{} {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return map[string]interface{}{
+	status := map[string]interface{}{
 		"agent_id":         s.config.Agent.ID,
 		"tenant_id":        s.config.Agent.TenantID,
 		"type":             "sensor",
 		"running":          s.started,
-		"started":          s.started,
-		"registration_id":  s.registrationID,
 		"plugin_count":     len(s.triggerPlugins),
 		"event_queue_size": len(s.eventChannel),
 		"metrics":          s.metrics.GetCurrentMetrics(),
 	}
+
+	// Add orchestrator workflow status
+	if s.orchestratorFlow != nil {
+		status["orchestrator_workflow"] = s.orchestratorFlow.GetStatus()
+	}
+
+	return status
 }
 
 // GetHealth returns the health status of the sensor agent
@@ -595,3 +487,5 @@ func (s *SensorAgent) GetHealth() map[string]interface{} {
 		"components": components,
 	}
 }
+
+

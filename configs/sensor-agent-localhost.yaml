@@ -1,0 +1,124 @@
+# Stavily Sensor Agent - Localhost Orchestrator Configuration
+# This config connects to orchestrator running at localhost:8000
+
+agent:
+  id: "sensor-${HOSTNAME}-001"  # Will be replaced during setup
+  name: "Sensor Agent - ${HOSTNAME}"
+  type: "sensor"
+  organization_id: "your-org-id"  # Replace with actual org ID
+  environment: "production"
+  version: "1.0.0"
+  region: "localhost"
+  tags:
+    - "localhost"
+    - "sensor"
+    - "mvp"
+  heartbeat_interval: "30s"
+  registration_retry_interval: "60s"
+  
+  # Required fields for validation compatibility
+  poll_interval: "30s"
+  max_concurrent_tasks: 5
+  task_timeout: "60s"
+
+api:
+  base_url: "http://localhost:8000"  # Orchestrator endpoint
+  agents_endpoint: "/api/v1/agents"
+  timeout: "30s"
+  retry:
+    max_attempts: 3
+    backoff: "exponential"
+  retry_attempts: 3
+  retry_delay: "5s"
+  rate_limit_rps: 10
+  max_idle_conns: 10
+  idle_conn_timeout: "90s"
+  user_agent: "Stavily-Sensor-Agent/1.0.0"
+
+security:
+  tls:
+    enabled: true
+    min_version: "1.3"
+    cert_file: "/opt/stavily/agent-sensor-${HOSTNAME}-001/config/certificates/agent.crt"
+    key_file: "/opt/stavily/agent-sensor-${HOSTNAME}-001/config/certificates/agent.key"
+    ca_file: "/opt/stavily/agent-sensor-${HOSTNAME}-001/config/certificates/ca.crt"
+    server_name: "localhost"
+    insecure_skip_verify: true  # For localhost development
+  auth:
+    type: "jwt"
+    method: "jwt"
+    token_file: "/opt/stavily/agent-sensor-${HOSTNAME}-001/config/certificates/agent.jwt"
+    token_ttl: "1h"
+  sandbox:
+    enabled: true
+    user: "stavily"
+    chroot: "/opt/stavily"
+    max_memory: 268435456  # 256MB in bytes
+    max_cpu: 0.5  # 0.5 CPU cores
+    max_exec_time: "5m"  # 5 minutes for sensor operations
+    max_file_size: 5242880  # 5MB in bytes
+    network_access: false  # Sensors typically don't need network access
+    allowed_paths:
+      - "/opt/stavily/agent-sensor-${HOSTNAME}-001"
+      - "/var/log"
+      - "/proc"
+      - "/sys"
+      - "/tmp"
+  audit:
+    enabled: true
+    log_file: "/opt/stavily/agent-sensor-${HOSTNAME}-001/logs/audit/sensor-audit.log"
+    max_size: 100
+    max_backups: 10
+    max_age: 30
+
+plugins:
+  directory: "/opt/stavily/agent-sensor-${HOSTNAME}-001/data/plugins"
+  auto_load: true
+  watch_changes: true
+  update_check: "1h"
+  timeout: "5m"  # Shorter timeout for sensor plugins
+  max_concurrent: 5
+  max_memory: "256MB"
+  allowed_plugins:
+    - "cpu-monitor"
+    - "disk-monitor"
+    - "memory-monitor"
+    - "log-monitor"
+    - "process-monitor"
+  registry:
+    url: "https://plugins.stavily.dev"
+    auth: false
+    cache_dir: "/opt/stavily/agent-sensor-${HOSTNAME}-001/cache/plugins"
+    cache_ttl: "24h"
+
+logging:
+  level: "info"
+  format: "json"
+  output: "file"
+  file: "/opt/stavily/agent-sensor-${HOSTNAME}-001/logs/sensor-agent.log"
+  max_size: 100
+  max_backups: 5
+  max_age: 30
+  compress: true
+
+health:
+  enabled: true
+  port: 8080  # Sensor Agent health port
+  path: "/health"
+  interval: "30s"
+  timeout: "10s"
+
+metrics:
+  enabled: true
+  port: 9090  # Sensor Agent metrics port
+  path: "/metrics"
+  namespace: "stavily_sensor"
+
+# Sensor-specific settings
+sensor:
+  trigger_check_interval: "10s"
+  max_concurrent_triggers: 5
+  trigger_timeout: "5m"
+  event_buffer_size: 1000
+  batch_size: 10
+  flush_interval: "5s" 
