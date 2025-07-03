@@ -38,7 +38,8 @@ func NewRateLimiter(rate int) *RateLimiter {
 		select {
 		case rl.tokens <- struct{}{}:
 		default:
-			break
+			// Channel is full, stop filling
+			return rl
 		}
 	}
 

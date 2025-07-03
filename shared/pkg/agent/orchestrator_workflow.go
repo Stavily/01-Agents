@@ -135,15 +135,23 @@ func (w *OrchestratorWorkflow) IsRunning() bool {
 func (w *OrchestratorWorkflow) run(ctx context.Context) {
 	defer close(w.doneChan)
 
-	heartbeatTicker := time.NewTicker(w.cfg.Agent.Heartbeat)
+	// Use default values if not configured
+	heartbeatInterval := w.cfg.Agent.Heartbeat
+	if heartbeatInterval <= 0 {
+		heartbeatInterval = 30 * time.Second
+	}
+	heartbeatTicker := time.NewTicker(heartbeatInterval)
 	defer heartbeatTicker.Stop()
 
 	pollInterval := w.cfg.Agent.PollInterval
+	if pollInterval <= 0 {
+		pollInterval = 10 * time.Second
+	}
 	pollTicker := time.NewTicker(pollInterval)
 	defer pollTicker.Stop()
 
 	w.logger.Info("Orchestrator workflow main loop started",
-		zap.Duration("heartbeat_interval", w.cfg.Agent.Heartbeat),
+		zap.Duration("heartbeat_interval", heartbeatInterval),
 		zap.Duration("poll_interval", pollInterval))
 
 	for {
