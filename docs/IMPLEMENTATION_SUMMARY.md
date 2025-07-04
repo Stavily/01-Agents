@@ -210,4 +210,30 @@ The Stavily Go Agents implementation is **production-ready** with:
 - ✅ **Developer-friendly** with documentation and examples
 - ✅ **CI/CD ready** with automated build system
 
-The implementation follows Go best practices, security standards, and provides a solid foundation for the Stavily automation platform. 
+The implementation follows Go best practices, security standards, and provides a solid foundation for the Stavily automation platform.
+
+## Directory Structure (Auto-Created)
+
+```
+agent-{AGENT_ID}/
+├── config/
+│   ├── agent.yaml
+│   ├── plugins/
+│   └── certificates/
+├── data/
+│   ├── plugins/
+│   ├── cache/
+│   └── state/
+├── logs/
+│   ├── agent.log
+│   ├── plugins/
+│   └── audit/
+└── tmp/
+    └── workdir/
+```
+
+- All directories above are created automatically by the agent on first run.
+
+## See also
+- `shared/pkg/config/config.go` for directory logic
+- `README.md` for quick start 

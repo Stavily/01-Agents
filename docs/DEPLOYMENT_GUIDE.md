@@ -1,6 +1,37 @@
 # Stavily Agents Deployment Guide
 
-This guide provides detailed instructions for deploying Stavily agents in production environments with enterprise-grade security, monitoring, and reliability.
+This guide covers production deployment for Stavily agents (Go 1.24.4+). All agent directories are now auto-created at startup; no manual setup is required.
+
+## Directory Structure (Auto-Created)
+
+```
+/opt/stavily/agent-{AGENT_ID}/
+├── config/
+│   ├── agent.yaml
+│   ├── plugins/
+│   └── certificates/
+├── data/
+│   ├── plugins/
+│   ├── cache/
+│   └── state/
+├── logs/
+│   ├── agent.log
+│   ├── plugins/
+│   └── audit/
+└── tmp/
+    └── workdir/
+```
+
+- All directories above are created automatically by the agent on first run.
+- Go version required: **1.24.4**
+- Enhanced-agent is no longer present (removed in 2025 refactor).
+
+## SystemD Service Names
+- `sensor-agent-{AGENT_ID}.service`, `action-agent-{AGENT_ID}.service`
+
+## See also
+- `docs/CONFIGURATION_GUIDE.md` for config details
+- `shared/pkg/config/config.go` for implementation
 
 ## Table of Contents
 

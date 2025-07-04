@@ -1,6 +1,45 @@
 # Stavily Agents Configuration Guide
 
-This guide provides comprehensive documentation for configuring Stavily agents, including all available options, environment variables, and advanced configuration scenarios.
+This guide documents configuration for Stavily agents (Go 1.24.4+). All agent directories are now auto-created at startup; no manual setup is required.
+
+## Directory Structure (Auto-Created)
+
+```
+agent-{AGENT_ID}/
+├── config/
+│   ├── agent.yaml
+│   ├── plugins/
+│   └── certificates/
+├── data/
+│   ├── plugins/
+│   ├── cache/
+│   └── state/
+├── logs/
+│   ├── agent.log
+│   ├── plugins/
+│   └── audit/
+└── tmp/
+    └── workdir/
+```
+
+- All directories above are created automatically by the agent on first run.
+- Go version required: **1.24.4**
+- Enhanced-agent is no longer present (removed in 2025 refactor).
+
+## Configuration Example
+
+```yaml
+agent:
+  id: "sensor-001"
+  name: "Sensor Agent"
+  type: "sensor"
+  base_folder: "/opt/stavily/agent-sensor-001"
+  ...
+```
+
+## See also
+- `shared/pkg/config/config.go` for directory logic
+- `README.md` for quick start
 
 ## Table of Contents
 

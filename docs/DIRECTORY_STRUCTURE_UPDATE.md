@@ -2,50 +2,46 @@
 
 ## Overview
 
-This document summarizes the changes made to support multiple agents of the same type on a single machine by implementing agent-specific directory structures and systemd service naming.
+This document summarizes the current Stavily agent directory structure, which is now automatically created at agent startup. All agents use Go 1.24.4 and the enhanced-agent has been fully removed.
 
 ## Key Changes
 
-### 1. Base Directory Structure
-- **Before**: `.stavily` (single directory for all agents)
-- **After**: `agent-{AGENT_ID}` (unique directory per agent)
+### 1. Base Directory Structure (Auto-Creation)
+- **Now**: Directory tree is created automatically by the agent on startup using the configuration in `shared/pkg/config/config.go`.
+- **Structure:**
+```
+{base_folder}/
+├── config/
+│   ├── plugins/
+│   └── certificates/
+├── data/
+│   ├── plugins/
+│   ├── cache/
+│   └── state/
+├── logs/
+│   ├── plugins/
+│   └── audit/
+└── tmp/
+    └── workdir/
+```
+- **Helper Methods:**
+  - `GetDataDir()`, `GetStateDir()`, `GetTmpDir()`, `GetWorkDir()`
 
 ### 2. SystemD Service Names
-- **Before**: `stavily-sensor.service`, `stavily-action.service`
-- **After**: `sensor-agent-{AGENT_ID}.service`, `action-agent-{AGENT_ID}.service`
+- `sensor-agent-{AGENT_ID}.service`, `action-agent-{AGENT_ID}.service`
 
-### 3. Directory Examples
+### 3. Migration Guide
+- No manual directory creation needed; agents will create all required folders on first run.
 
-#### Old Structure (Single Agent)
-```
-/var/lib/stavily/
-└── .stavily/
-    ├── config/
-    ├── data/
-    └── logs/
-```
+### 4. Go Version
+- All modules require **Go 1.24.4**
 
-#### New Structure (Multiple Agents)
-```
-/var/lib/stavily/
-├── agent-sensor-web-01/        # First sensor agent
-│   ├── config/
-│   ├── data/
-│   └── logs/
-├── agent-sensor-db-01/         # Second sensor agent  
-│   ├── config/
-│   ├── data/
-│   └── logs/
-└── agent-action-exec-01/       # Action agent
-    ├── config/
-    ├── data/
-    └── logs/
-```
+### 5. Enhanced-Agent Removal
+- All references and configs for enhanced-agent have been removed as of the 2025 refactor.
 
-### 4. SystemD Service Examples
-- `/etc/systemd/system/sensor-agent-web-01.service`
-- `/etc/systemd/system/sensor-agent-db-01.service`
-- `/etc/systemd/system/action-agent-exec-01.service`
+## See also
+- `docs/CONFIGURATION_GUIDE.md` for config details
+- `shared/pkg/config/config.go` for implementation
 
 ## Files Updated
 
@@ -72,18 +68,6 @@ This document summarizes the changes made to support multiple agents of the same
 3. **Easy Management**: Systemd services clearly identify which agent they control
 4. **Scalability**: Support for complex deployment scenarios
 5. **Maintenance**: Easier to manage configurations, logs, and data per agent
-
-## Migration Guide
-
-### For Existing Deployments
-1. Stop existing agents
-2. Move `.stavily` directory to `agent-{AGENT_ID}`
-3. Update systemd service files with new names and paths
-4. Update configuration files
-5. Restart agents with new service names
-
-### For New Deployments
-Simply follow the updated documentation - all examples now use the new structure.
 
 ## Configuration Template
 

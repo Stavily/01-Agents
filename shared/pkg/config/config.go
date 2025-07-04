@@ -204,51 +204,67 @@ func (c *Config) expandBaseFolderPaths() error {
 		return fmt.Errorf("base_folder is required")
 	}
 
-	// Ensure base folder exists
-	if err := os.MkdirAll(c.Agent.BaseFolder, 0755); err != nil {
-		return fmt.Errorf("failed to create base folder: %w", err)
+	// Create complete agent directory structure
+	if err := c.createAgentDirectoryStructure(); err != nil {
+		return fmt.Errorf("failed to create agent directory structure: %w", err)
 	}
 
 	// Expand logging file path
 	if c.Logging.File != "" && !filepath.IsAbs(c.Logging.File) {
 		c.Logging.File = filepath.Join(c.Agent.BaseFolder, "logs", c.Logging.File)
-		if err := os.MkdirAll(filepath.Dir(c.Logging.File), 0755); err != nil {
-			return fmt.Errorf("failed to create log directory: %w", err)
-		}
 	}
 
 	// Expand plugin directory path
 	if c.Plugins.Directory != "" && !filepath.IsAbs(c.Plugins.Directory) {
-		c.Plugins.Directory = filepath.Join(c.Agent.BaseFolder, "plugins")
-		if err := os.MkdirAll(c.Plugins.Directory, 0755); err != nil {
-			return fmt.Errorf("failed to create plugins directory: %w", err)
-		}
+		c.Plugins.Directory = filepath.Join(c.Agent.BaseFolder, "data", "plugins")
 	}
 
 	// Expand plugin cache directory
 	if c.Plugins.Registry.CacheDir != "" && !filepath.IsAbs(c.Plugins.Registry.CacheDir) {
-		c.Plugins.Registry.CacheDir = filepath.Join(c.Agent.BaseFolder, "cache", "plugins")
-		if err := os.MkdirAll(c.Plugins.Registry.CacheDir, 0755); err != nil {
-			return fmt.Errorf("failed to create plugin cache directory: %w", err)
-		}
+		c.Plugins.Registry.CacheDir = filepath.Join(c.Agent.BaseFolder, "data", "cache", "plugins")
 	}
 
 	// Expand audit log file path
 	if c.Security.Audit.LogFile != "" && !filepath.IsAbs(c.Security.Audit.LogFile) {
 		c.Security.Audit.LogFile = filepath.Join(c.Agent.BaseFolder, "logs", "audit", c.Security.Audit.LogFile)
-		if err := os.MkdirAll(filepath.Dir(c.Security.Audit.LogFile), 0755); err != nil {
-			return fmt.Errorf("failed to create audit log directory: %w", err)
-		}
 	}
 
 	// Expand auth token file path
 	if c.Security.Auth.TokenFile != "" && !filepath.IsAbs(c.Security.Auth.TokenFile) {
 		c.Security.Auth.TokenFile = filepath.Join(c.Agent.BaseFolder, "config", "certificates", c.Security.Auth.TokenFile)
-		if err := os.MkdirAll(filepath.Dir(c.Security.Auth.TokenFile), 0755); err != nil {
-			return fmt.Errorf("failed to create certificates directory: %w", err)
-		}
 	}
 
+	return nil
+}
+
+// createAgentDirectoryStructure creates the complete directory structure for the agent
+func (c *Config) createAgentDirectoryStructure() error {
+	baseDir := c.Agent.BaseFolder
+	
+	// Define the complete directory structure as documented in README.md
+	dirs := []string{
+		baseDir,                                    // Base directory
+		filepath.Join(baseDir, "config"),          // Configuration directory
+		filepath.Join(baseDir, "config", "plugins"), // Plugin configurations
+		filepath.Join(baseDir, "config", "certificates"), // TLS certificates
+		filepath.Join(baseDir, "data"),            // Data directory
+		filepath.Join(baseDir, "data", "plugins"), // Plugin binaries and data
+		filepath.Join(baseDir, "data", "cache"),   // Temporary cache files
+		filepath.Join(baseDir, "data", "state"),   // Agent state files
+		filepath.Join(baseDir, "logs"),            // Logs directory
+		filepath.Join(baseDir, "logs", "plugins"), // Plugin logs
+		filepath.Join(baseDir, "logs", "audit"),   // Audit logs
+		filepath.Join(baseDir, "tmp"),             // Temporary files
+		filepath.Join(baseDir, "tmp", "workdir"),  // Work directory for actions
+	}
+	
+	// Create all directories with appropriate permissions
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+	
 	return nil
 }
 
@@ -304,7 +320,7 @@ func setDefaults() {
 	viper.SetDefault("metrics.namespace", "stavily")
 
 	// Plugin defaults
-	viper.SetDefault("plugins.directory", "plugins")
+	viper.SetDefault("plugins.directory", "data/plugins")
 	viper.SetDefault("plugins.auto_load", true)
 	viper.SetDefault("plugins.watch_changes", true)
 	viper.SetDefault("plugins.update_check", "1h")
@@ -357,7 +373,27 @@ func (c *Config) GetPluginDir() string {
 
 // GetCacheDir returns the cache directory path
 func (c *Config) GetCacheDir() string {
-	return filepath.Join(c.Agent.BaseFolder, "cache")
+	return filepath.Join(c.Agent.BaseFolder, "data", "cache")
+}
+
+// GetDataDir returns the data directory path
+func (c *Config) GetDataDir() string {
+	return filepath.Join(c.Agent.BaseFolder, "data")
+}
+
+// GetStateDir returns the state directory path  
+func (c *Config) GetStateDir() string {
+	return filepath.Join(c.Agent.BaseFolder, "data", "state")
+}
+
+// GetTmpDir returns the temporary directory path
+func (c *Config) GetTmpDir() string {
+	return filepath.Join(c.Agent.BaseFolder, "tmp")
+}
+
+// GetWorkDir returns the work directory path (for action agents)
+func (c *Config) GetWorkDir() string {
+	return filepath.Join(c.Agent.BaseFolder, "tmp", "workdir")
 }
 
 // GetConfigDir returns the config directory path

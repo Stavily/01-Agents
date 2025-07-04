@@ -42,7 +42,7 @@ This directory contains the implementation of Stavily's two-agent architecture: 
 ## Quick Start
 
 ### Prerequisites
-- Go 1.21+
+- Go 1.24.4+
 - Docker (optional)
 - Make
 
@@ -272,7 +272,7 @@ Example structure:
 
 ### Prerequisites
 
-- Go 1.21+ (for building from source)
+- Go 1.24.4+ (for building from source)
 - Docker (for containerized deployment)
 - Valid Stavily account and API credentials
 
@@ -372,7 +372,7 @@ docker run -d \
 
 ### Build Requirements
 
-- Go 1.21 or later
+- Go 1.24.4 or later
 - Make (for using Makefile)
 - Docker (for containerized builds)
 

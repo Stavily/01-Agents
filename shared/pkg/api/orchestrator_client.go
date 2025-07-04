@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/stavily/agents/shared/pkg/config"
@@ -20,7 +21,8 @@ import (
 type OrchestratorClient struct {
 	baseURL    string
 	agentID    string
-	apiKey     string
+	authToken  string
+	authMethod string
 	httpClient *http.Client
 	logger     *zap.Logger
 }
@@ -34,15 +36,51 @@ func NewOrchestratorClient(cfg *config.Config, logger *zap.Logger) (*Orchestrato
 		return nil, fmt.Errorf("logger is required")
 	}
 
-	// Load API key from file if specified
-	apiKey := ""
+	logger.Debug("Creating new orchestrator client",
+		zap.String("base_url", cfg.API.BaseURL),
+		zap.String("agent_id", cfg.Agent.ID),
+		zap.String("auth_method", cfg.Security.Auth.Method))
+
+	// Validate auth method
+	if cfg.Security.Auth.Method != "api_key" && cfg.Security.Auth.Method != "jwt" {
+		return nil, fmt.Errorf("unsupported authentication method: %s (must be 'api_key' or 'jwt')", cfg.Security.Auth.Method)
+	}
+
+	// Initialize auth token based on configuration
+	var authToken string
+
+	// If token file is specified, it takes precedence
 	if cfg.Security.Auth.TokenFile != "" {
+		logger.Debug("Reading token from file", zap.String("token_file", cfg.Security.Auth.TokenFile))
 		tokenBytes, err := os.ReadFile(cfg.Security.Auth.TokenFile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read API key from file: %w", err)
+			logger.Error("Failed to read token file",
+				zap.String("token_file", cfg.Security.Auth.TokenFile),
+				zap.Error(err))
+			return nil, fmt.Errorf("failed to read token from file: %w", err)
 		}
-		apiKey = string(bytes.TrimSpace(tokenBytes))
+		authToken = string(bytes.TrimSpace(tokenBytes))
+		logger.Debug("Token read from file",
+			zap.String("token_file", cfg.Security.Auth.TokenFile),
+			zap.Int("token_length", len(authToken)))
+	} else {
+		// Otherwise use the API key/token from config
+		logger.Debug("Using token from config")
+		authToken = cfg.Security.Auth.APIKey
 	}
+
+	// Validate that we have a token
+	if authToken == "" {
+		logger.Error("No authentication token provided")
+		return nil, fmt.Errorf("no authentication token provided: set api_key/token in config or provide valid token_file")
+	}
+
+	// Clean the token - remove any "Bearer " prefix if present
+	authToken = strings.TrimPrefix(strings.TrimSpace(authToken), "Bearer ")
+	
+	logger.Debug("Token validation",
+		zap.Int("token_length", len(authToken)),
+		zap.String("token_prefix", authToken[:min(len(authToken), 10)]+"..."))
 
 	httpClient := &http.Client{
 		Timeout: cfg.API.Timeout,
@@ -51,10 +89,19 @@ func NewOrchestratorClient(cfg *config.Config, logger *zap.Logger) (*Orchestrato
 	return &OrchestratorClient{
 		baseURL:    cfg.API.BaseURL,
 		agentID:    cfg.Agent.ID,
-		apiKey:     apiKey,
+		authToken:  authToken,
+		authMethod: cfg.Security.Auth.Method,
 		httpClient: httpClient,
 		logger:     logger,
 	}, nil
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // InstructionResponse represents the response from polling for instructions
@@ -207,7 +254,6 @@ func (c *OrchestratorClient) SubmitInstructionResult(ctx context.Context, instru
 // SendHeartbeat sends a heartbeat to the orchestrator
 func (c *OrchestratorClient) SendHeartbeat(ctx context.Context) error {
 	url := fmt.Sprintf("%s/agents/v1/%s/heartbeat", c.baseURL, c.agentID)
-	
 	heartbeatData := map[string]interface{}{
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 		"status":    "healthy",
@@ -241,9 +287,22 @@ func (c *OrchestratorClient) SendHeartbeat(ctx context.Context) error {
 
 // setHeaders sets the required headers for API requests
 func (c *OrchestratorClient) setHeaders(req *http.Request) {
+	c.logger.Debug("Setting request headers",
+		zap.String("method", req.Method),
+		zap.String("url", req.URL.String()),
+		zap.String("auth_method", c.authMethod))
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+	
+	// Set auth header - always use Bearer for both JWT and API key
+	authHeader := fmt.Sprintf("Bearer %s", c.authToken)
+	req.Header.Set("Authorization", authHeader)
+	
+	c.logger.Debug("Authorization header set",
+		zap.Int("auth_header_length", len(authHeader)),
+		zap.String("auth_header_prefix", authHeader[:min(len(authHeader), 15)]+"..."))
+	
 	req.Header.Set("User-Agent", "Stavily-Agent/1.0.0")
 }
 

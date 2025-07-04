@@ -1,0 +1,28 @@
+agent:
+  id: "04b26223-62e2-43c7-a3a6-25df0f413760"
+  name: "Quick Start Sensor"
+  type: "sensor"
+  organization_id: "your-org-id"
+  environment: "dev"
+  base_folder: "/home/eduardez/Workspace/Stavily/01-Agents/test-agents/sensor-agent-01"
+  heartbeat_interval: "1s"
+  poll_interval: "10s"
+
+api:
+  base_url: "http://0.0.0.0:8000"
+  
+logging:
+  level: "info"
+  format: "json"
+
+security:
+  auth:
+    method: "api_key"
+    api_key: "agent_xK7mN9pQ2vR8sT6uW3yZ1aBcDeFg"
+
+  sandbox:
+    allowed_paths:  # Required for sensor agents
+      - "/var/log"
+      - "/proc"
+      - "/sys"
+      - "/tmp"
