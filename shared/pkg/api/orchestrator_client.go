@@ -251,12 +251,18 @@ func (c *OrchestratorClient) SubmitInstructionResult(ctx context.Context, instru
 	return &resultResp, nil
 }
 
-// SendHeartbeat sends a heartbeat to the orchestrator
-func (c *OrchestratorClient) SendHeartbeat(ctx context.Context) error {
+// SendHeartbeat sends a heartbeat to the orchestrator. The status parameter
+// allows the caller to specify the agent's state (e.g. "online", "offline").
+// If an empty string is provided, the status defaults to "online".
+func (c *OrchestratorClient) SendHeartbeat(ctx context.Context, status string) error {
+	if status == "" {
+		status = "online"
+	}
+
 	url := fmt.Sprintf("%s/agents/v1/%s/heartbeat", c.baseURL, c.agentID)
 	heartbeatData := map[string]interface{}{
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"status":    "healthy",
+		"status":    status,
 	}
 
 	bodyBytes, err := json.Marshal(heartbeatData)

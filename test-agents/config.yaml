@@ -1,5 +1,5 @@
 agent:
-  id: "04b26223-62e2-43c7-a3a6-25df0f413760"
+  id: "65bb7a51-1812-4a37-90d5-3e8a859ba972"
   name: "Quick Start Sensor"
   type: "sensor"
   organization_id: "your-org-id"
@@ -18,7 +18,7 @@ logging:
 security:
   auth:
     method: "api_key"
-    api_key: "agent_xK7mN9pQ2vR8sT6uW3yZ1aBcDeFg"
+    api_key: "agent_6xiC2DesMsu62nIG/MUZW1qZNYFP"
 
   sandbox:
     allowed_paths:  # Required for sensor agents

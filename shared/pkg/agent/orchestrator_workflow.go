@@ -114,6 +114,11 @@ func (w *OrchestratorWorkflow) Stop(ctx context.Context) error {
 		return ctx.Err()
 	}
 
+	// Send a final "offline" heartbeat before closing the client
+	if err := w.orchestratorClient.SendHeartbeat(ctx, "offline"); err != nil {
+		w.logger.Error("Failed to send offline heartbeat", zap.Error(err))
+	}
+
 	// Close orchestrator client
 	if err := w.orchestratorClient.Close(); err != nil {
 		w.logger.Error("Error closing orchestrator client", zap.Error(err))
@@ -174,7 +179,7 @@ func (w *OrchestratorWorkflow) run(ctx context.Context) {
 func (w *OrchestratorWorkflow) sendHeartbeat(ctx context.Context) {
 	w.logger.Debug("Sending heartbeat")
 
-	if err := w.orchestratorClient.SendHeartbeat(ctx); err != nil {
+	if err := w.orchestratorClient.SendHeartbeat(ctx, "online"); err != nil {
 		w.logger.Error("Failed to send heartbeat", zap.Error(err))
 		return
 	}
