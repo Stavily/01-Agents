@@ -13,8 +13,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/stavily/agents/sensor-agent/internal/agent"
-	"github.com/stavily/agents/shared/pkg/config"
+	"github.com/Stavily/01-Agents/sensor-agent/internal/agent"
+	"github.com/Stavily/01-Agents/shared/pkg/config"
 )
 
 var (

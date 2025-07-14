@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stavily/agents/shared/pkg/config"
+	"github.com/Stavily/01-Agents/shared/pkg/config"
 	"go.uber.org/zap"
 )
 
@@ -115,6 +115,7 @@ type InstructionResponse struct {
 type Instruction struct {
 	ID                   string                 `json:"id"`
 	PluginID             string                 `json:"plugin_id"`
+	InstructionType      string                 `json:"instruction_type"`
 	PluginConfiguration  map[string]interface{} `json:"plugin_configuration"`
 	InputData            map[string]interface{} `json:"input_data"`
 	TimeoutSeconds       int                    `json:"timeout_seconds"`

@@ -9,10 +9,10 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/stavily/agents/shared/pkg/api"
-	"github.com/stavily/agents/shared/pkg/config"
-	"github.com/stavily/agents/shared/pkg/plugin"
-	sharedagent "github.com/stavily/agents/shared/pkg/agent"
+	"github.com/Stavily/01-Agents/shared/pkg/api"
+	"github.com/Stavily/01-Agents/shared/pkg/config"
+	"github.com/Stavily/01-Agents/shared/pkg/plugin"
+	sharedagent "github.com/Stavily/01-Agents/shared/pkg/agent"
 )
 
 // ActionExecutor executes action tasks using plugins

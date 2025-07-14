@@ -435,12 +435,12 @@ bin/
 
 ```bash
 # Download latest release
-curl -L https://github.com/stavily/agents/releases/latest/download/sensor-agent-linux-amd64 -o sensor-agent
+curl -L https://github.com/Stavily/01-Agents/releases/latest/download/sensor-agent-linux-amd64 -o sensor-agent
 chmod +x sensor-agent
 sudo mv sensor-agent /usr/local/bin/
 
 # Or for Action Agent
-curl -L https://github.com/stavily/agents/releases/latest/download/action-agent-linux-amd64 -o action-agent
+curl -L https://github.com/Stavily/01-Agents/releases/latest/download/action-agent-linux-amd64 -o action-agent
 chmod +x action-agent
 sudo mv action-agent /usr/local/bin/
 ```
@@ -1265,4 +1265,4 @@ metrics:
 - **API Reference**: https://api.stavily.com/docs
 - **Support**: support@stavily.com
 - **Community**: https://community.stavily.com
-- **Issues**: https://github.com/stavily/agents/issues 
+- **Issues**: https://github.com/Stavily/01-Agents/issues 

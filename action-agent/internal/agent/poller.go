@@ -9,9 +9,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/stavily/agents/shared/pkg/agent"
-	"github.com/stavily/agents/shared/pkg/api"
-	"github.com/stavily/agents/shared/pkg/config"
+	"github.com/Stavily/01-Agents/shared/pkg/agent"
+	"github.com/Stavily/01-Agents/shared/pkg/api"
+	"github.com/Stavily/01-Agents/shared/pkg/config"
 )
 
 // TaskPoller polls the orchestrator for pending action tasks

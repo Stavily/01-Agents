@@ -1,4 +1,4 @@
-module github.com/stavily/agents/shared
+module github.com/Stavily/01-Agents/shared
 
 go 1.24.4
 

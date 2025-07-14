@@ -9,9 +9,10 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/stavily/agents/shared/pkg/agent"
-	"github.com/stavily/agents/shared/pkg/api"
-	"github.com/stavily/agents/shared/pkg/config"
+	"github.com/Stavily/01-Agents/shared/pkg/agent"
+	"github.com/Stavily/01-Agents/shared/pkg/api"
+	"github.com/Stavily/01-Agents/shared/pkg/config"
+	"github.com/Stavily/01-Agents/shared/pkg/types"
 )
 
 // ActionAgent represents the main action agent instance
@@ -45,7 +46,7 @@ func NewActionAgent(cfg *config.Config, logger *zap.Logger) (*ActionAgent, error
 	}
 
 	// Create plugin manager
-	pluginMgr, err := NewPluginManager(&cfg.Plugins, logger)
+	pluginMgr, err := NewPluginManager(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create plugin manager: %w", err)
 	}
@@ -191,22 +192,108 @@ func (a *ActionAgent) executeActionPlugin(ctx context.Context, instruction *api.
 		zap.String("plugin_id", instruction.PluginID),
 		zap.Any("input_data", instruction.InputData))
 
-	// For action agents, we execute action plugins through the executor
-	// This is a simplified implementation - in production, this would
-	// use the actual plugin manager and executor
+	// Convert api.Instruction to types.Instruction for enhanced plugin manager
+	typesInstruction := a.convertAPIInstructionToTypes(instruction)
 	
-	// Simulate action plugin execution
-	select {
-	case <-time.After(3 * time.Second): // Simulate action work
-		a.logger.Info("Action plugin executed successfully")
+	// Create a poll response with the instruction
+	pollResponse := &types.PollResponse{
+		Instruction:      typesInstruction,
+		Status:           "instruction_delivered",
+		NextPollInterval: 5,
+	}
+
+	// Process the instruction using the enhanced plugin manager
+	result, err := a.pluginMgr.ProcessInstruction(ctx, pollResponse)
+	if err != nil {
+		a.logger.Error("Failed to process instruction",
+			zap.String("instruction_id", instruction.ID),
+			zap.Error(err))
+		return nil, err
+	}
+
+	if result == nil {
+		a.logger.Info("No result from instruction processing")
 		return map[string]interface{}{
-			"action_type": "plugin_execution",
-			"result":      "Action completed successfully",
-			"timestamp":   time.Now().UTC().Format(time.RFC3339),
-			"data":        instruction.InputData,
+			"status": "no_result",
 		}, nil
-	case <-ctx.Done():
-		return nil, fmt.Errorf("action plugin execution timed out")
+	}
+
+	// Convert the result back to the expected format
+	resultMap := map[string]interface{}{
+		"instruction_id": result.InstructionID,
+		"success":        result.Success,
+		"duration":       result.Duration,
+		"start_time":     result.StartTime,
+		"end_time":       result.EndTime,
+		"logs":           result.ProcessingLogs,
+	}
+
+	if result.InstallResult != nil {
+		resultMap["install_result"] = map[string]interface{}{
+			"plugin_id":      result.InstallResult.PluginID,
+			"success":        result.InstallResult.Success,
+			"installed_path": result.InstallResult.InstalledPath,
+			"version":        result.InstallResult.Version,
+			"logs":           result.InstallResult.Logs,
+			"duration":       result.InstallResult.Duration,
+		}
+	}
+
+	if result.ExecutionResult != nil {
+		resultMap["execution_result"] = map[string]interface{}{
+			"plugin_id":    result.ExecutionResult.PluginID,
+			"success":      result.ExecutionResult.Success,
+			"output_data":  result.ExecutionResult.OutputData,
+			"logs":         result.ExecutionResult.Logs,
+			"duration":     result.ExecutionResult.Duration,
+			"exit_code":    result.ExecutionResult.ExitCode,
+		}
+	}
+
+	if result.Error != "" {
+		resultMap["error"] = result.Error
+	}
+
+	a.logger.Info("Action plugin executed successfully",
+		zap.String("instruction_id", instruction.ID),
+		zap.Bool("success", result.Success))
+
+	return resultMap, nil
+}
+
+// convertAPIInstructionToTypes converts an api.Instruction to types.Instruction
+func (a *ActionAgent) convertAPIInstructionToTypes(apiInst *api.Instruction) *types.Instruction {
+	// Use the instruction type from the API, with fallback logic
+	instructionType := types.InstructionTypeExecute // Default to execute
+	
+	// First, check if instruction_type is explicitly provided
+	if apiInst.InstructionType != "" {
+		instructionType = types.InstructionType(apiInst.InstructionType)
+	} else {
+		// Fallback: determine instruction type based on plugin configuration
+		if pluginURL, hasPluginURL := apiInst.PluginConfiguration["plugin_url"]; hasPluginURL && pluginURL != "" {
+			instructionType = types.InstructionTypePluginInstall
+		} else if repoURL, hasRepoURL := apiInst.PluginConfiguration["repository_url"]; hasRepoURL && repoURL != "" {
+			instructionType = types.InstructionTypePluginInstall
+		}
+	}
+	
+	return &types.Instruction{
+		ID:                  apiInst.ID,
+		AgentID:             a.cfg.Agent.ID, // Use the agent's ID
+		PluginID:            apiInst.PluginID,
+		Status:              types.InstructionStatusPending, // Default status
+		Priority:            types.PriorityNormal,           // Default priority
+		Type:                instructionType,
+		Source:              types.InstructionSourceWebUI,       // Default source
+		PluginConfiguration: apiInst.PluginConfiguration,
+		InputData:           apiInst.InputData,
+		Context:             make(map[string]interface{}), // Empty context
+		Variables:           make(map[string]interface{}), // Empty variables
+		TimeoutSeconds:      apiInst.TimeoutSeconds,
+		MaxRetries:          apiInst.MaxRetries,
+		RetryCount:          0,                      // Default retry count
+		Metadata:            make(map[string]interface{}), // Empty metadata
 	}
 }
 

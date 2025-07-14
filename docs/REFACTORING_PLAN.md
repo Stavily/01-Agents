@@ -96,7 +96,7 @@ mkdir -p shared/pkg/agent
 #### 2.1 Sensor Agent Updates ✅ COMPLETED
 ```go
 // ✅ IMPLEMENTED: Replace local components with shared ones
-import "github.com/stavily/agents/shared/pkg/agent"
+import "github.com/Stavily/01-Agents/shared/pkg/agent"
 
 // ✅ IMPLEMENTED: Use shared health checker
 healthChecker := agent.NewHealthChecker(cfg.Health, logger)

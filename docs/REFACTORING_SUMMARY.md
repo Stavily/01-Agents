@@ -66,7 +66,7 @@ The comprehensive refactoring of the Stavily Agents codebase has been **SUCCESSF
 
 #### 2.1 Sensor Agent Updates ✅
 **Changes Implemented:**
-- Updated imports to use `github.com/stavily/agents/shared/pkg/agent`
+- Updated imports to use `github.com/Stavily/01-Agents/shared/pkg/agent`
 - Replaced local health, metrics, and plugin components with shared versions
 - Added proper validation in `NewSensorAgent` constructor
 - Fixed compilation errors and interface compatibility issues

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 
-	"github.com/stavily/agents/shared/pkg/config"
+	"github.com/Stavily/01-Agents/shared/pkg/config"
 )
 
 func TestNewPluginManager(t *testing.T) {

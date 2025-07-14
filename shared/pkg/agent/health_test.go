@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stavily/agents/shared/pkg/config"
+	"github.com/Stavily/01-Agents/shared/pkg/config"
 	"go.uber.org/zap/zaptest"
 )
 

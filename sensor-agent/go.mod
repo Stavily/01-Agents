@@ -1,16 +1,16 @@
-module github.com/stavily/agents/sensor-agent
+module github.com/Stavily/01-Agents/sensor-agent
 
 go 1.24.4
 
 require (
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
-	github.com/stavily/agents/shared v0.0.0
+	github.com/Stavily/01-Agents/shared v0.0.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 )
 
-replace github.com/stavily/agents/shared => ../shared
+replace github.com/Stavily/01-Agents/shared => ../shared
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect

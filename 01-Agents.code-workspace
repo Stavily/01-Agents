@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../.cursor"
+		},
+		{
+			"path": "../00-Management"
+		},
+		{
+			"path": "../07-Database"
+		}
+	],
+	"settings": {}
+}

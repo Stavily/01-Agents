@@ -2,14 +2,13 @@ agent:
   id: "65bb7a51-1812-4a37-90d5-3e8a859ba972"
   name: "Quick Start Sensor"
   type: "sensor"
-  organization_id: "your-org-id"
   environment: "dev"
   base_folder: "/home/eduardez/Workspace/Stavily/01-Agents/test-agents/sensor-agent-01"
   heartbeat_interval: "1s"
   poll_interval: "10s"
 
 api:
-  base_url: "http://0.0.0.0:8000"
+  base_url: "http://192.168.1.10:30111"
   
 logging:
   level: "info"

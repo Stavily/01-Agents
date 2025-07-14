@@ -2,18 +2,32 @@
 package agent
 
 import (
+	"path/filepath"
+	"time"
+
 	"go.uber.org/zap"
 
-	"github.com/stavily/agents/shared/pkg/config"
-	sharedagent "github.com/stavily/agents/shared/pkg/agent"
+	"github.com/Stavily/01-Agents/shared/pkg/config"
+	sharedagent "github.com/Stavily/01-Agents/shared/pkg/agent"
 )
 
-// PluginManager is an alias to the shared plugin manager
-type PluginManager = sharedagent.PluginManager
+// PluginManager is an alias to the shared enhanced plugin manager
+type PluginManager = sharedagent.EnhancedPluginManager
 
-// NewPluginManager creates a new plugin manager using the shared implementation
-func NewPluginManager(cfg *config.PluginConfig, logger *zap.Logger) (*PluginManager, error) {
-	return sharedagent.NewPluginManager(cfg, logger)
+// NewPluginManager creates a new enhanced plugin manager using the shared implementation
+func NewPluginManager(cfg *config.Config, logger *zap.Logger) (*PluginManager, error) {
+	// Create the plugin directory path based on agent base folder
+	pluginDir := filepath.Join(cfg.Agent.BaseFolder, "config", "plugins")
+	
+	// Create enhanced plugin manager configuration
+	enhancedCfg := &sharedagent.EnhancedPluginConfig{
+		PluginConfig:  &cfg.Plugins,
+		PluginBaseDir: pluginDir,
+		GitTimeout:    5 * time.Minute,
+		ExecTimeout:   10 * time.Minute,
+	}
+	
+	return sharedagent.NewEnhancedPluginManager(enhancedCfg, logger)
 }
 
 
